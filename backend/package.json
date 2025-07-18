@@ -1,31 +1,31 @@
 {
-  "name": "backend",
+  "name": "one-place-chat-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend for One Place Chat application",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node --loader ts-node/esm index.ts",
+    "generate-mcp": "node --loader ts-node/esm src/utils/runMCPGenerator.ts"
   },
-  "keywords": [],
+  "keywords": [
+    "chat",
+    "real-time",
+    "messaging"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.0.14",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
-    "express": "^5.1.0",
-    "helmet": "^8.1.0",
-    "mongoose": "^8.16.3",
-    "morgan": "^1.10.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "@types/commander": "^2.12.5",
+    "axios": "^1.10.0",
+    "commander": "^14.0.0",
+    "express": "^4.21.2",
+    "file-type": "^21.0.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/morgan": "^1.9.10",
-    "nodemon": "^3.1.10"
+    "@types/express": "^5.0.3",
+    "@types/node": "^20.19.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }
