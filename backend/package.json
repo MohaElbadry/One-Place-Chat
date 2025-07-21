@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "NODE_OPTIONS='--import tsx' node index.ts",
-    "generate-mcp": "NODE_OPTIONS='--import tsx' node src/utils/runMCPGenerator.ts"
+    "generate-mcp": "NODE_OPTIONS='--import tsx' node src/utils/runMCPGenerator.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [
     "chat",
@@ -25,7 +28,10 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"

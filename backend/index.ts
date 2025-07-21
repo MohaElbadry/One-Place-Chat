@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { join } from 'path';
 import { promises as fs } from 'fs';
 import { fileTypeFromFile } from 'file-type';
-import MCPToolGenerator from './src/utils/generateMCPTools.js';
+import { MCPToolGenerator } from './src/utils/generator';
 import type { MCPTool, MCPToolGenerationResult } from './src/types/mcp-tool.types.js';
 
 // ========================
@@ -84,43 +84,6 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-/**
- * Generate MCP tools from OpenAPI specification
- * POST /api/generate-tools
- * Body: { filePath: string }
- */
-app.post('/api/generate-tools', async (req: Request, res: Response) => {
-  const { filePath } = req.body;
-  
-  // Input validation
-  if (!filePath) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'filePath is required in the request body' 
-    });
-  }
-
-  try {
-    // Ensure output directory exists
-    await fs.mkdir(CONFIG.OUTPUT_DIR, { recursive: true });
-    
-    // File validation
-    await validateFile(filePath);
-    
-    // Generate tools
-    const { tools, outputFile } = await generateTools(filePath);
-    
-    // Send success response
-    res.json({
-      success: true,
-      message: 'Tools generated successfully',
-      tools: tools.map(t => t.name),
-      outputFile
-    });
-  } catch (error) {
-    throw error; // Will be caught by error handling middleware
-  }
-});
 
 // ========================
 // Helper Functions
