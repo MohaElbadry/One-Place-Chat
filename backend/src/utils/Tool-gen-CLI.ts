@@ -14,7 +14,7 @@
  *   mcp-tool-generator generate -i ./api-spec.json -o ./generated-tools
  */
 
-import { MCPToolGenerator } from './generator/mcp-tool-generator.js';
+import { MCPToolGenerator } from './generator';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Command } from 'commander';
