@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "description": "Backend for One Place Chat application",
   "main": "index.js",
-  "type": "module",
   "scripts": {
-    "start": "node --loader ts-node/esm index.ts",
-    "generate-mcp": "node --loader ts-node/esm src/utils/runMCPGenerator.ts"
+    "start": "NODE_OPTIONS='--import tsx' node index.ts",
+    "generate-mcp": "NODE_OPTIONS='--import tsx' node src/utils/runMCPGenerator.ts"
   },
   "keywords": [
     "chat",
@@ -17,15 +16,18 @@
   "license": "MIT",
   "dependencies": {
     "@types/commander": "^2.12.5",
+    "@types/cors": "^2.8.19",
     "axios": "^1.10.0",
     "commander": "^14.0.0",
+    "cors": "^2.8.5",
     "express": "^4.21.2",
     "file-type": "^21.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
-    "@types/node": "^20.19.8",
+    "@types/node": "^20.19.9",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }
