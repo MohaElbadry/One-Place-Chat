@@ -1,9 +1,17 @@
-# MCP Tool Generator
+# One Place Chat - Backend
 
-[![npm version](https://img.shields.io/npm/v/mcp-tool-generator.svg)](https://www.npmjs.com/package/mcp-tool-generator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A powerful tool for generating Machine-Readable API Client (MCP) tools from OpenAPI/Swagger specifications. Convert your API documentation into executable tools with minimal configuration.
+Backend service for One Place Chat application, featuring MCP (Machine-Readable API Client) tool generation from OpenAPI/Swagger specifications.
+
+## Features
+
+- 🚀 RESTful API for chat functionality
+- 🔄 Real-time messaging with WebSocket support
+- 📚 OpenAPI 3.0+ specification support
+- 🛠️ MCP tool generation from API specs
+- 🔒 JWT-based authentication
+- 📦 Containerized with Docker
 
 ## Features
 
@@ -14,39 +22,115 @@ A powerful tool for generating Machine-Readable API Client (MCP) tools from Open
 - 🎯 Optimized for large API specifications
 - 📝 Comprehensive TypeScript support
 
+## Project Structure
+
+The codebase is organized into a clean, modular structure for better maintainability:
+
+```
+src/utils/generator/
+├── index.ts                 # Main exports and entry point
+├── types/                   # TypeScript type definitions
+│   ├── document.types.ts    # Document processing types
+│   └── mcp-tool.types.ts    # MCP tool related types
+├── loaders/                 # Document loading utilities
+│   └── document-loader.ts   # Handles loading API specs from files/URLs
+├── validators/              # Document validation
+│   └── document-validator.ts # Validates OpenAPI/Swagger documents
+├── chunkers/                # Document chunking for large specs
+│   └── document-chunker.ts  # Splits large documents into chunks
+├── processors/              # Endpoint processing
+│   └── endpoint-processor.ts # Processes API endpoints
+├── generators/              # Tool generation
+│   └── tool-generator.ts    # Generates MCP tools from endpoints
+└── optimizers/              # Tool optimization
+    └── tool-optimizer.ts    # Optimizes and deduplicates tools
+```
+
+### Key Components
+
+1. **Main Exports (`index.ts`)**
+   - Primary interface for the MCP Tool Generator
+   - Orchestrates the entire tool generation pipeline
+   - Handles error handling and result formatting
+
+2. **Type Definitions (`types/`)**
+   - Strong TypeScript types for all interfaces
+   - Clear separation of document and tool types
+   - Self-documenting code with JSDoc comments
+
+3. **Document Processing (`loaders/`, `validators/`, `chunkers/`)**
+   - Load API specifications from various sources
+   - Validate document structure and content
+   - Efficiently process large documents by chunking
+
+4. **Tool Generation (`processors/`, `generators/`, `optimizers/`)**
+   - Extract and process API endpoints
+   - Generate MCP tools with proper schemas
+   - Optimize and deduplicate generated tools
+
+## Prerequisites
+
+- Node.js 20.x or later
+- npm 9.x or later
+- Docker (optional, for containerization)
+
 ## Installation
 
-### Global Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/one-place-chat.git
+   cd one-place-chat/backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+## Running the Server
+
+### Development Mode
 ```bash
-npm install -g mcp-tool-generator
+npm run dev
 ```
 
-### Local Installation
+### Production Mode
 ```bash
-npm install --save-dev mcp-tool-generator
+npm start
 ```
 
-## Usage
-
-### Command Line Interface
+### Using Docker
 ```bash
-mcp-tool-generator generate -i <input-file> [options]
+docker-compose up --build
 ```
 
-### Options
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-i, --input <path>` | Path to OpenAPI/Swagger file (required) | - |
-| `-o, --output <dir>` | Output directory for generated tools | `./generated-tools` |
-| `--pretty` | Format output with indentation | `false` |
-| `-v, --version` | Show version | - |
-| `-h, --help` | Display help | - |
+## API Endpoints
 
-### Examples
+- `GET /health` - Health check endpoint
+- `POST /api/generate-tools` - Generate MCP tools from OpenAPI spec
+  - Body: `{ "filePath": "path/to/openapi.json" }`
 
-#### Basic Usage
+## Development
+
+### Testing
 ```bash
-mcp-tool-generator generate -i api-spec.json
+npm test
+```
+
+### Linting
+```bash
+npm run lint
+```
+
+### Building for Production
+```bash
+npm run build
 ```
 
 #### With Custom Output Directory
