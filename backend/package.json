@@ -8,6 +8,7 @@
     "start": "NODE_OPTIONS='--import=tsx' node index.ts",
     "generate-tools": "NODE_OPTIONS='--import=tsx' node src/utils/ToolGen-CLI.ts",
     "parse-openapi": "NODE_OPTIONS='--import=tsx' node src/examples/parse-petstore.ts",
+    "mcp-server": "NODE_OPTIONS='--import=tsx' node src/utils/run-mcp-server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -20,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "@types/commander": "^2.12.5",
     "@types/cors": "^2.8.19",
     "axios": "^1.10.0",

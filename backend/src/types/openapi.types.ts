@@ -99,17 +99,26 @@ export interface OpenAPIParameter {
 export interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: any;
-  annotations: {
-    method: string;
-    path: string;
+  inputSchema: {
+    type: "object";
+    properties: Record<string, any>;
+    required?: string[];
+    additionalProperties?: boolean;
+  };
+  annotations?: {
+    method?: string;
+    path?: string;
     tags?: string[];
-    deprecated?: boolean;
+    title?: string;
+    openWorldHint?: boolean;
+    readOnlyHint?: boolean;
   };
   endpoint: {
     method: string;
     path: string;
     baseUrl: string;
   };
-  security?: Array<Record<string, string[]>>;
+  security?: Array<{
+    [key: string]: string[];
+  }>;
 }
