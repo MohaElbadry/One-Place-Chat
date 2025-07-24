@@ -3,7 +3,14 @@ import { join } from 'path';
 import { promises as fs } from 'fs';
 import { fileTypeFromFile } from 'file-type';
 import { MCPToolGenerator } from './src/utils/generator';
-import type { MCPTool, MCPToolGenerationResult } from './src/types/mcp-tool.types.js';
+import { MCPTool } from './src/utils/generator/types/mcp-tool.types';
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('⚠️  OPENAI_API_KEY not found in environment variables');
+  console.warn('   Bridge functionality will not work without it');
+}
 
 // ========================
 // Custom Logger
@@ -166,7 +173,6 @@ function startServer() {
     logger.server.info(`Server is running on http://localhost:${CONFIG.PORT}`);
     logger.server.info('\n Available endpoints:');
     logger.server.info(`- Health check:    http://localhost:${CONFIG.PORT}/health`);
-    logger.server.info(`- Generate tools:  POST http://localhost:${CONFIG.PORT}/api/generate-tools`);
     logger.server.info('\n---- Server logs will appear below:\n');
   });
 
@@ -218,7 +224,6 @@ async function startServers() {
       logger.server.info(`Server is running on http://localhost:${CONFIG.PORT}`);
       logger.server.info('\n Available endpoints:');
       logger.server.info(`- Health check:    http://localhost:${CONFIG.PORT}/health`);
-      logger.server.info(`- Generate tools:  POST http://localhost:${CONFIG.PORT}/api/generate-tools`);
       logger.server.info('\n---- Server logs will appear below:\n');
     });
 

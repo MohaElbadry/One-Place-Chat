@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-const fs = require('fs/promises');
-const path = require('path');
-const { ToolGenerator } = require('./ToolGenerator');
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { MCPToolGenerator } from './generator/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function main() {
   // Get command line arguments
@@ -23,19 +27,34 @@ async function main() {
   }
 
   try {
-    // Read and parse the OpenAPI spec
-    const specContent = await fs.readFile(specPath, 'utf-8');
-    const apiSpec = JSON.parse(specContent);
-
-    // Initialize the generator
-    const generator = new ToolGenerator(apiKey);
+    // Set OpenAI API key in environment
+    process.env.OPENAI_API_KEY = apiKey;
     
-    // Generate the tool implementations
+    // Initialize the tool generator
+    const generator = new MCPToolGenerator();
+    
+    // Generate the tools from the API spec file
     console.log('🚀 Starting tool generation...');
-    await generator.generateToolImplementations(apiSpec, outputDir);
+    const result = await generator.generateMCPTools(specPath);
+    
+    if (!result.tools || result.tools.length === 0) {
+      throw new Error('No tools were generated from the API specification');
+    }
+    
+    // Create output directory if it doesn't exist
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // Save each tool to a separate file
+    for (const tool of result.tools) {
+      const toolFileName = `${tool.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+      const toolPath = path.join(outputDir, toolFileName);
+      await fs.writeFile(toolPath, JSON.stringify(tool, null, 2));
+      console.log(`📄 Generated tool: ${toolPath}`);
+    }
     
     console.log('✅ Tool generation completed successfully!');
     console.log(`📁 Output directory: ${path.resolve(outputDir)}`);
+    console.log(`✨ Generated ${result.tools.length} tools`);
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -45,6 +64,4 @@ async function main() {
 }
 
 // Run the CLI
-if (require.main === module) {
-  main();
-}
+main().catch(console.error);

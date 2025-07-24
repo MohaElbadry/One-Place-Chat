@@ -4,10 +4,12 @@
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options' | 'head';
 
+export type DocumentChunkType = 'info' | 'paths' | 'definitions' | 'components' | 'security';
+
 export interface DocumentChunk {
   id: string;
   content: any;
-  type: 'paths' | 'components' | 'definitions' | 'security' | 'info';
+  type: DocumentChunkType;
   startLine: number;
   endLine: number;
   references: string[];

@@ -1,5 +1,5 @@
-import { EndpointInfo } from '../../../types/document.types';
-import { MCPTool } from '../../../types/mcp-tool.types';
+import type { MCPTool } from '../types/mcp-tool.types';
+import type { EndpointInfo, HttpMethod } from '../types/document.types';
 
 /**
  * Generates MCP tools from API endpoint information
@@ -25,14 +25,23 @@ export class ToolGenerator {
     const inputSchema = this.createInputSchema(endpoint, document);
     const annotations = this.createAnnotations(endpoint);
 
+    // Ensure inputSchema has the correct type
+    const validatedInputSchema = {
+      type: 'object' as const,
+      properties: inputSchema.properties || {},
+      required: inputSchema.required || [],
+      ...inputSchema
+    };
+
     return {
       name,
-      description: endpoint.description || endpoint.summary,
-      inputSchema,
-      annotations: {
-        ...annotations,
-        title: endpoint.summary || name,
-      },
+      description: endpoint.description || endpoint.summary || 'No description available',
+      inputSchema: validatedInputSchema,
+      annotations: annotations,
+      parameters: {},
+      execute: async () => {
+        throw new Error('Not implemented: API calls should be handled by the MCP server');
+      }
     };
   }
 
@@ -125,6 +134,7 @@ export class ToolGenerator {
     );
 
     return {
+      title: endpoint.summary || `${method.toUpperCase()} ${endpoint.path}`,
       readOnlyHint: isReadOnly,
       destructiveHint: isDestructive,
       idempotentHint: isIdempotent,

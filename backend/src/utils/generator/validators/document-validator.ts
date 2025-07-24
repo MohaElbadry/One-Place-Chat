@@ -1,4 +1,4 @@
-import { DocumentValidationResult } from '../../types/document.types';
+import type { DocumentValidationResult } from '../../../types/document.types';
 
 /**
  * Validates API specification documents
@@ -9,13 +9,25 @@ export class DocumentValidator {
    */
   public validate(document: any): DocumentValidationResult {
     if (!document) {
-      return { valid: false, error: 'Document is empty' };
+      return { 
+        isValid: false, 
+        errors: ['Document is empty'],
+        warnings: []
+      };
     }
     
     if (!document.openapi && !document.swagger) {
-      return { valid: false, error: 'Not a valid OpenAPI/Swagger document' };
+      return { 
+        isValid: false, 
+        errors: ['Not a valid OpenAPI/Swagger document'],
+        warnings: []
+      };
     }
     
-    return { valid: true };
+    return { 
+      isValid: true, 
+      errors: [],
+      warnings: []
+    };
   }
 }

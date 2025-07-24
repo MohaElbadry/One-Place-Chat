@@ -1,7 +1,3 @@
-/**
- * Type definitions for MCP Tools
- */
-
 import { JSONSchema7 } from 'json-schema';
 
 export interface MCPTool {
@@ -41,28 +37,4 @@ export interface MCPTool {
   
   /** Function to execute the tool */
   execute: (args: any) => Promise<any>;
-}
-
-export interface MCPToolGenerationResult {
-  /** Generated tools */
-  tools: MCPTool[];
-  
-  /** Metadata about the generation process */
-  metadata: {
-    /** Total number of endpoints processed */
-    totalEndpoints: number;
-    
-    /** Number of document chunks processed */
-    processedChunks: number;
-    
-    /** Information about the API */
-    apiInfo: {
-      title?: string;
-      version?: string;
-      description?: string;
-    };
-    
-    /** Time taken to generate the tools in milliseconds */
-    processingTime: number;
-  };
 }

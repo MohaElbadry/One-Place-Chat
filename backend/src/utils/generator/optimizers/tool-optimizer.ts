@@ -33,8 +33,10 @@ export class ToolOptimizer {
   private optimizeToolSchema(tool: MCPTool): MCPTool {
     const optimized = { ...tool };
 
-    if (optimized.inputSchema.required?.length === 0) {
-      delete optimized.inputSchema.required;
+    // Only try to optimize if inputSchema exists and has required property
+    if (optimized.inputSchema && 'required' in optimized.inputSchema && Array.isArray(optimized.inputSchema.required) && optimized.inputSchema.required.length === 0) {
+      const { required, ...restSchema } = optimized.inputSchema;
+      optimized.inputSchema = restSchema;
     }
 
     return optimized;

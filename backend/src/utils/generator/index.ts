@@ -4,8 +4,15 @@ import { DocumentChunker } from './chunkers/document-chunker';
 import { EndpointProcessor } from './processors/endpoint-processor';
 import { ToolGenerator } from './generators/tool-generator';
 import { ToolOptimizer } from './optimizers/tool-optimizer';
-import { DocumentProcessorOptions, DocumentValidationResult } from './types/document.types';
-import { MCPTool, MCPToolGenerationResult } from './types/mcp-tool.types';
+import type { 
+  MCPToolGenerationResult,
+  MCPTool 
+} from './types/mcp-tool.types';
+import type { 
+  DocumentProcessorOptions,
+  EndpointInfo,
+  HttpMethod 
+} from './types/document.types';
 
 /**
  * MCP (Machine-Readable API Client) Tool Generator
@@ -49,9 +56,9 @@ export class MCPToolGenerator {
       const document = await this.documentLoader.load(documentPath);
 
       // 2. Validate the document
-      const { valid, error } = this.documentValidator.validate(document);
-      if (!valid) {
-        throw new Error(`Invalid API document: ${error}`);
+      const { isValid, errors } = this.documentValidator.validate(document);
+      if (!isValid) {
+        throw new Error(`Invalid API document: ${errors.join(', ')}`);
       }
 
       // 3. Chunk the document for processing

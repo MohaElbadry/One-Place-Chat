@@ -1,5 +1,6 @@
-import { DocumentChunk, EndpointInfo, HttpMethod } from '../../types/document.types';
-import { MCPTool } from '../../types/mcp-tool.types';
+import type { DocumentChunk } from '../types/document.types';
+import type { EndpointInfo, HttpMethod } from '../types/document.types';
+import type { MCPTool } from '../types/mcp-tool.types';
 
 /**
  * Processes API endpoints to extract relevant information
@@ -8,25 +9,33 @@ export class EndpointProcessor {
   /**
    * Processes a document chunk to extract endpoint information
    */
-  public processChunk(chunk: DocumentChunk, fullDocument: any): EndpointInfo[] {
+  public processChunk(chunk: DocumentChunk, document: any): EndpointInfo[] {
     const endpoints: EndpointInfo[] = [];
-
-    if (chunk.type === 'paths') {
-      for (const [path, methods] of Object.entries(chunk.content as Record<string, any>)) {
-        for (const [method, operation] of Object.entries(methods as Record<string, any>)) {
-          if (this.isValidHttpMethod(method)) {
-            const endpoint = this.extractEndpointInfo(
-              path,
-              method,
-              operation,
-              fullDocument
-            );
-            if (endpoint) endpoints.push(endpoint);
+    
+    if (chunk.type === 'paths' && chunk.content) {
+      for (const [path, methods] of Object.entries(chunk.content)) {
+        if (typeof methods === 'object' && methods !== null) {
+          for (const [method, operation] of Object.entries(methods as Record<string, any>)) {
+            if (this.isHttpMethod(method) && operation) {
+              const endpoint: EndpointInfo = {
+                path,
+                method: method as HttpMethod, // Cast to HttpMethod
+                operationId: operation.operationId,
+                summary: operation.summary,
+                description: operation.description,
+                parameters: operation.parameters || [],
+                requestBody: operation.requestBody,
+                responses: operation.responses || {},
+                security: operation.security,
+                tags: operation.tags
+              };
+              endpoints.push(endpoint);
+            }
           }
         }
       }
     }
-
+    
     return endpoints;
   }
 
@@ -58,11 +67,7 @@ export class EndpointProcessor {
   /**
    * Validates if a string is a valid HTTP method
    */
-  private isValidHttpMethod(
-    method: string
-  ): method is HttpMethod {
-    return [
-      'get', 'post', 'put', 'delete', 'patch', 'options', 'head'
-    ].includes(method.toLowerCase());
+  private isHttpMethod(method: string): method is HttpMethod {
+    return ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].includes(method.toLowerCase());
   }
 }

@@ -6,12 +6,11 @@ import { OpenAPIV2, OpenAPIV3 } from "openapi-types";
 export type DocumentType = OpenAPIV2.Document | OpenAPIV3.Document;
 
 export type DocumentChunkType =
-  | "paths"
-  | "components"
-  | "definitions"
-  | "security"
   | "info"
-  | "tags";
+  | "paths"
+  | "definitions"
+  | "components"
+  | "security";
 
 /**
  * Represents a chunk of a larger API document for processing

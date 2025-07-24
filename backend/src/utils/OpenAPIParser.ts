@@ -1,3 +1,5 @@
+import { OpenAPIV3 } from 'openapi-types';
+import { JSONSchema7 } from 'json-schema';
 import { OpenAPISpec, ToolDefinition } from '../types/openapi.types';
 
 type ParameterLocation = 'query' | 'header' | 'path' | 'cookie';
@@ -118,23 +120,30 @@ export class OpenAPIParser {
 
   private parseOperation(path: string, method: string, operation: OpenAPIOperation): ToolDefinition | null {
     const inputSchema = this.extractInputSchema(operation);
+    const methodUpper = method.toUpperCase();
     
     return {
-      name: operation.operationId,
+      name: operation.operationId || `${methodUpper}_${path.replace(/[^a-zA-Z0-9_]/g, '_')}`,
       description: operation.summary || operation.description || 'No description available',
       inputSchema,
       annotations: {
-        method: method.toUpperCase(),
+        method: methodUpper,
         path,
         tags: operation.tags,
-        deprecated: operation.deprecated
+        deprecated: operation.deprecated || false,
+        title: operation.summary || '',
+        openWorldHint: false,
+        readOnlyHint: methodUpper === 'GET' || methodUpper === 'HEAD'
       },
       endpoint: {
-        method: method.toUpperCase(),
+        method: methodUpper,
         path,
         baseUrl: this.baseUrl
       },
-      security: operation.security || this.spec.security
+      security: operation.security || this.spec.security || [],
+      execute: async () => {
+        throw new Error('Not implemented: API calls should be handled by the MCP server');
+      }
     };
   }
 
@@ -188,36 +197,28 @@ export class OpenAPIParser {
   }
 
   private convertParameterToSchema(param: OpenAPIParameter): JSONSchema7 | null {
-    let schema: JSONSchema7 = {
-      type: param.type as any,
+    if (!param) return null;
+    
+    // Create a basic schema with type information
+    const schema: JSONSchema7 & { deprecated?: boolean } = {
+      type: (param.schema?.type || param.type || 'string') as JSONSchema7['type'],
       description: param.description,
-      format: param.format,
-      deprecated: param.deprecated,
-      enum: param.enum,
+      format: param.format || param.schema?.format,
+      enum: param.enum || param.schema?.enum,
       default: param.default,
     };
 
+    // Add deprecated property if needed
+    if (param.deprecated) {
+      schema.deprecated = true;
+    }
+
     // Handle array types
-    if (schema.type === 'array' && param.items) {
-      schema.items = {
-        type: param.items.type as any,
-        format: param.items.format,
-      };
+    if ((schema.type === 'array' || param.type === 'array') && (param.items || param.schema?.items)) {
+      schema.items = param.items || param.schema?.items || { type: 'string' };
     }
 
-    // If we have a schema reference, resolve it
-    if (param.schema) {
-      const resolvedSchema = this.resolveSchema(param.schema);
-      schema = { ...schema, ...resolvedSchema };
-    }
-
-    // Clean up undefined values
-    Object.keys(schema).forEach(key => {
-      if (schema[key as keyof JSONSchema7] === undefined) {
-        delete schema[key as keyof JSONSchema7];
-      }
-    });
-
+    return schema;
     return Object.keys(schema).length > 0 ? schema : null;
   }
 

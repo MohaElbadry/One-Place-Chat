@@ -28,24 +28,46 @@ export class ApiMcpServer {
    */
   public registerTools(tools: ToolDefinition[]) {
     tools.forEach(tool => {
-      if (this.validateToolSchema(tool)) {
-        this.apiTools.set(tool.name, tool);
-      } else {
-        console.error(`Invalid tool schema for: ${tool.name}`);
+      try {
+        if (this.validateToolSchema(tool)) {
+          this.apiTools.set(tool.name, tool);
+        } else {
+          const toolName = (tool as any)?.name || 'unknown';
+          console.error(`Invalid tool schema for: ${toolName}`);
+        }
+      } catch (error) {
+        console.error('Error registering tool:', error);
       }
     });
-    console.log(`Registered ${tools.length} API tools`);
+    console.log(`Processed ${tools.length} API tools`);
   }
 
-  private validateToolSchema(tool: any): tool is ToolDefinition {
-    return tool && 
-           typeof tool.name === 'string' &&
-           typeof tool.description === 'string' &&
-           tool.inputSchema &&
-           tool.endpoint &&
-           typeof tool.endpoint.method === 'string' &&
-           typeof tool.endpoint.path === 'string' &&
-           typeof tool.endpoint.baseUrl === 'string';
+  private validateToolSchema(tool: unknown): tool is ToolDefinition {
+    if (!tool || typeof tool !== 'object') {
+      console.error('Invalid tool: not an object');
+      return false;
+    }
+    
+    const toolObj = tool as Record<string, unknown>;
+    const name = toolObj.name as string | undefined;
+    const endpoint = toolObj.endpoint as Record<string, unknown> | undefined;
+    
+    const isValid = Boolean(
+      typeof name === 'string' &&
+      typeof toolObj.description === 'string' &&
+      toolObj.inputSchema &&
+      endpoint &&
+      typeof endpoint.method === 'string' &&
+      typeof endpoint.path === 'string' &&
+      typeof endpoint.baseUrl === 'string'
+    );
+    
+    if (!isValid) {
+      const toolName = name || 'unknown';
+      console.error(`Invalid tool schema for tool: ${toolName}`);
+    }
+    
+    return isValid;
   }
 
   private setupHandlers() {
@@ -104,10 +126,10 @@ export class ApiMcpServer {
         return await this.handleListLoadedTools();
       } 
       // Handle API tool execution
-      else if (name.startsWith("api_")) {
+      if (name.startsWith("api_")) {
         const toolName = name.substring(4);
         if (this.apiTools.has(toolName)) {
-          const { _authToken, _generateCurlOnly, ...parameters } = args;
+          const { _authToken, _generateCurlOnly, ...parameters } = args as any;
           return await this.handleExecuteApiTool({
             toolName,
             parameters,
@@ -159,7 +181,7 @@ export class ApiMcpServer {
       return {
         content: [{
           type: "text",
-          text: `cURL command for ${toolName}:\n\n\`\`\`bash\n${this.generateCurlCommand(request)}\n\`\`\``
+          text: this.generateCurlCommand(request)
         }]
       };
     }

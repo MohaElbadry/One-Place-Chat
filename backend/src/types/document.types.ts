@@ -2,6 +2,8 @@
  * Types for document processing in the MCP Tool Generator
  */
 
+export type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'head' | 'options';
+
 export type DocumentType = {
   openapi?: string;
   swagger?: string;
@@ -27,7 +29,7 @@ export interface DocumentChunk {
 
 export interface EndpointInfo {
   path: string;
-  method: string;
+  method: HttpMethod;
   operationId?: string;
   summary?: string;
   description?: string;
@@ -36,4 +38,11 @@ export interface EndpointInfo {
   responses?: Record<string, any>;
   security?: any[];
   tags?: string[];
+  deprecated?: boolean;
+}
+
+export interface DocumentValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 }

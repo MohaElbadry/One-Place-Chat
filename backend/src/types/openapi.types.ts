@@ -96,29 +96,31 @@ export interface OpenAPIParameter {
   default?: any;
 }
 
+export interface JSONSchema7 {
+  type: "object";
+  properties: Record<string, any>;
+  required?: string[];
+  additionalProperties?: boolean;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: {
-    type: "object";
-    properties: Record<string, any>;
-    required?: string[];
-    additionalProperties?: boolean;
-  };
-  annotations?: {
-    method?: string;
-    path?: string;
+  inputSchema: JSONSchema7;
+  annotations: {
+    method: string;
+    path: string;
     tags?: string[];
     title?: string;
     openWorldHint?: boolean;
     readOnlyHint?: boolean;
+    deprecated?: boolean;
   };
   endpoint: {
     method: string;
     path: string;
     baseUrl: string;
   };
-  security?: Array<{
-    [key: string]: string[];
-  }>;
+  security?: any[];
+  execute: (args: any) => Promise<any>;
 }
