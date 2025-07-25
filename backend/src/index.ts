@@ -7,7 +7,7 @@ import { OpenAPIParser } from './utils/OpenAPIParser.js';
 
 
 // Configuration
-const DEFAULT_SPEC = path.join(process.cwd(), 'api-docs/TMDB/openAPI.json');
+const DEFAULT_SPEC = path.join(process.cwd(), 'api-docs/httpbin.json');
 const DEFAULT_OUTPUT_DIR = path.join(process.cwd(), 'generated-tools');
 
 async function generateTools(specPath: string, outputDir: string, singleFile: boolean = true): Promise<void> {

@@ -6,7 +6,8 @@
   "type": "module",
   "typeModule": true,
   "bin": {
-    "mcp-gpt-bridge": "./dist/mcp-gpt-bridge.js"
+    "mcp-gpt-bridge": "./dist/mcp-gpt-bridge.js",
+    "tool-helper": "./dist/cli/tool-helper.js"
   },
   "files": [
     "dist"
@@ -19,7 +20,11 @@
     "generate-tools": "npm run start -- generate",
     "generate:single": "npm run start -- generate --single-file",
     "generate:individual": "npm run start -- generate --individual-files",
-    "start-server": "npm run start -- start-server"
+    "start-server": "npm run start -- start-server",
+    "tool-helper": "node --import tsx src/cli/tool-helper.ts",
+    "interactive": "node --import tsx src/cli/interactive-tool-helper.ts",
+    "enhanced-tool": "node --import tsx src/cli/enhanced-tool-helper.ts",
+    "mcp-test": "node --import tsx src/cli/mcp-testing-cli.ts"
   },
   "keywords": [
     "chat",
@@ -31,13 +36,16 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.0",
     "@types/cors": "^2.8.19",
+    "@types/inquirer": "^9.0.8",
     "@types/json-schema": "^7.0.15",
     "axios": "^1.10.0",
+    "chalk": "^5.4.1",
     "commander": "^14.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
+    "dotenv": "^17.2.1",
     "express": "^4.21.2",
-    "openai": "^5.10.2",
+    "inquirer": "^9.3.7",
+    "openai": "^4.104.0",
     "openapi-types": "^12.1.3",
     "zod": "^3.25.76"
   },
