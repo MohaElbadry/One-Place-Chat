@@ -4,13 +4,10 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "strict": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "rootDir": "src",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -18,10 +15,14 @@
     "typeRoots": [
       "./node_modules/@types"
     ],
-    "types": ["node"],
-    "declaration": true,
-    "sourceMap": true
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/bridge/**/*.ts",
+    "src/cli/**/*.ts",
+    "src/mcp-gpt-bridge.ts"
+  ],
+  "exclude": ["node_modules"]
 }

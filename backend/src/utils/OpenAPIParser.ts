@@ -1,111 +1,72 @@
 import { OpenAPIV3 } from 'openapi-types';
 import { JSONSchema7 } from 'json-schema';
-import { OpenAPISpec, ToolDefinition } from '../types/openapi.types';
-
-type ParameterLocation = 'query' | 'header' | 'path' | 'cookie';
-
-interface OpenAPIParameter {
-  name: string;
-  in: ParameterLocation;
-  description?: string;
-  required?: boolean;
-  deprecated?: boolean;
-  schema?: any;
-  type?: string;
-  format?: string;
-  enum?: any[];
-  default?: any;
-  items?: {
-    type?: string;
-    format?: string;
-    enum?: any[];
-    $ref?: string;
-  };
-  $ref?: string;
-}
-
-interface OpenAPIOperation {
-  operationId?: string;
-  summary?: string;
-  description?: string;
-  tags?: string[];
-  parameters?: Array<OpenAPIParameter | { $ref: string }>;
-  requestBody?: {
-    description?: string;
-    content: {
-      [mimeType: string]: {
-        schema: any;
-      };
-    };
-    required?: boolean;
-  };
-  responses: Record<string, any>;
-  deprecated?: boolean;
-  security?: Array<Record<string, string[]>>;
-}
+import { 
+  MCPTool, 
+  OpenAPIParameter, 
+  OpenAPIOperation,
+  HttpMethod,
+  ParameterLocation
+} from '../types.js';
 
 export class OpenAPIParser {
-  private spec: OpenAPISpec;
+  private spec: OpenAPIV3.Document;
   private baseUrl: string;
-  private components: {
-    schemas?: Record<string, any>;
-    securitySchemes?: Record<string, any>;
-    responses?: Record<string, any>;
-    parameters?: Record<string, OpenAPIParameter>;
-    requestBodies?: Record<string, any>;
-  };
+  private components: OpenAPIV3.ComponentsObject;
+  private securitySchemes: Record<string, OpenAPIV3.SecuritySchemeObject | OpenAPIV3.ReferenceObject> = {};
 
-  constructor(spec: OpenAPISpec) {
+  constructor(spec: OpenAPIV3.Document) {
     this.spec = spec;
     this.components = spec.components || {};
-    this.baseUrl = this.determineBaseUrl();
+    this.securitySchemes = this.components.securitySchemes || {};
+    this.baseUrl = this.getBaseUrl();
   }
 
-  private determineBaseUrl(): string {
+  private getBaseUrl(): string {
+    const spec = this.spec as any; // Type assertion to handle both v2 and v3
+    
     // Handle OpenAPI 3.x
-    if (this.spec.servers && this.spec.servers.length > 0) {
-      const server = this.spec.servers[0];
-      let url = server.url;
-      
+    if (spec.servers && spec.servers.length > 0) {
+      let url = spec.servers[0].url;
       // Handle server variables if present
-      if (server.variables) {
-        for (const [varName, varDef] of Object.entries(server.variables as Record<string, { default: string }>)) {
-          url = url.replace(`{${varName}}`, varDef.default);
+      if (spec.servers[0].variables) {
+        for (const [varName, varDef] of Object.entries(spec.servers[0].variables as Record<string, { default: string }>)) {
+          url = url.replace(`{${varName}}`, (varDef as any).default);
         }
       }
-      
-      // Ensure the URL doesn't end with a slash
       return url.endsWith('/') ? url.slice(0, -1) : url;
     }
     
     // Handle Swagger 2.0
-    if ('swagger' in this.spec) {
-      const scheme = this.spec.schemes?.[0] || 'https';
-      const host = this.spec.host || 'petstore.swagger.io';
-      const basePath = this.spec.basePath || '';
+    if ('swagger' in spec && spec.swagger === '2.0') {
+      const scheme = Array.isArray(spec.schemes) ? spec.schemes[0] : 'https';
+      const host = spec.host || 'petstore.swagger.io';
+      const basePath = spec.basePath || '';
       return `${scheme}://${host}${basePath}`.replace(/\/$/, '');
     }
     
     return ''; // Fallback to relative URLs
   }
 
-  public parseOperations(): ToolDefinition[] {
-    const tools: ToolDefinition[] = [];
+  public parseOperations(): MCPTool[] {
+    const tools: MCPTool[] = [];
     
+    if (!this.spec.paths) return tools;
+
     // Process each path in the spec
-    const paths = this.spec.paths || {};
-    for (const [path, pathItem] of Object.entries(paths)) {
-      if (!pathItem || typeof pathItem !== 'object') continue;
-      
+    for (const [path, pathItem] of Object.entries(this.spec.paths)) {
+      if (!pathItem) continue;
+
       // Process each HTTP method in the path
-      const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'] as const;
+      const methods = Object.entries(pathItem)
+        .filter(([key]) => ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'].includes(key))
+        .map(([key]) => key as Lowercase<HttpMethod>);
+
       for (const method of methods) {
-        // Safely access the operation using type assertion
-        const operation = (pathItem as any)[method];
-        if (!operation || typeof operation !== 'object') continue;
-        
+        const operation = pathItem[method];
+        if (!operation) continue;
+
         try {
-          const tool = this.parseOperation(path, method.toUpperCase(), operation);
+          const tool = this.parseOperation(path, method.toUpperCase() as HttpMethod, operation);
           if (tool) {
             tools.push(tool);
           }
@@ -118,25 +79,52 @@ export class OpenAPIParser {
     return tools;
   }
 
-  private parseOperation(path: string, method: string, operation: OpenAPIOperation): ToolDefinition | null {
-    const inputSchema = this.extractInputSchema(operation);
-    const methodUpper = method.toUpperCase();
+  private parseOperation(
+    path: string,
+    method: HttpMethod,
+    operation: OpenAPIV3.OperationObject
+  ): MCPTool | null {
+    if (!operation) return null;
+
+    const operationId = operation.operationId || `${method}_${path.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+    const description = operation.summary || operation.description || 'No description available';
+    
+    // Convert parameters to OpenAPIParameter array
+    const parameters = (operation.parameters || []).map(param => {
+      if ('$ref' in param) {
+        return this.resolveParameterRef(param);
+      }
+      return this.normalizeParameter(param);
+    }).filter((p): p is OpenAPIParameter => p !== null);
+
+    // Handle request body reference if present
+    let requestBody = operation.requestBody;
+    if (requestBody && '$ref' in requestBody) {
+      requestBody = this.resolveRequestBodyRef(requestBody);
+    }
+
+    // Create operation with normalized parameters and request body
+    const normalizedOperation: OpenAPIOperation = {
+      ...operation,
+      parameters,
+      requestBody: requestBody as OpenAPIV3.RequestBodyObject | undefined
+    };
     
     return {
-      name: operation.operationId || `${methodUpper}_${path.replace(/[^a-zA-Z0-9_]/g, '_')}`,
-      description: operation.summary || operation.description || 'No description available',
-      inputSchema,
+      name: operationId,
+      description,
+      inputSchema: this.extractInputSchema(normalizedOperation),
       annotations: {
-        method: methodUpper,
+        method,
         path,
         tags: operation.tags,
-        deprecated: operation.deprecated || false,
+        deprecated: !!operation.deprecated,
         title: operation.summary || '',
         openWorldHint: false,
-        readOnlyHint: methodUpper === 'GET' || methodUpper === 'HEAD'
+        readOnlyHint: method === 'GET' || method === 'HEAD'
       },
       endpoint: {
-        method: methodUpper,
+        method,
         path,
         baseUrl: this.baseUrl
       },
@@ -147,105 +135,20 @@ export class OpenAPIParser {
     };
   }
 
-  private extractInputSchema(operation: OpenAPIOperation): any {
-    const properties: Record<string, any> = {};
-    const required: string[] = [];
-
-    // Handle parameters
-    if (operation.parameters) {
-      for (const param of operation.parameters) {
-        const paramDef = this.resolveParameterRef(param);
-        if (!paramDef) continue;
-
-        const { name, in: paramIn, required: isRequired, schema, description } = paramDef;
-        
-        // Skip parameters that aren't path, query, or header
-        if (!['path', 'query', 'header'].includes(paramIn)) continue;
-        
-        // Add to properties
-        properties[name] = {
-          type: schema?.type || 'string',
-          description,
-          ...(schema || {})
-        };
-        
-        // Mark as required if needed
-        if (isRequired || paramIn === 'path') {
-          required.push(name);
-        }
-      }
-    }
-
-    // Handle request body
-    if (operation.requestBody) {
-      const content = operation.requestBody.content;
-      const jsonContent = content['application/json'];
-      if (jsonContent?.schema) {
-        properties['body'] = this.resolveSchema(jsonContent.schema);
-        if (operation.requestBody.required) {
-          required.push('body');
-        }
-      }
-    }
-
-    return {
-      type: 'object',
-      properties,
-      required: required.length > 0 ? required : undefined,
-      additionalProperties: false
-    };
-  }
-
-  private convertParameterToSchema(param: OpenAPIParameter): JSONSchema7 | null {
-    if (!param) return null;
+  private resolveRequestBodyRef(ref: OpenAPIV3.ReferenceObject): OpenAPIV3.RequestBodyObject | undefined {
+    if (!ref.$ref) return undefined;
     
-    // Create a basic schema with type information
-    const schema: JSONSchema7 & { deprecated?: boolean } = {
-      type: (param.schema?.type || param.type || 'string') as JSONSchema7['type'],
-      description: param.description,
-      format: param.format || param.schema?.format,
-      enum: param.enum || param.schema?.enum,
-      default: param.default,
-    };
-
-    // Add deprecated property if needed
-    if (param.deprecated) {
-      schema.deprecated = true;
-    }
-
-    // Handle array types
-    if ((schema.type === 'array' || param.type === 'array') && (param.items || param.schema?.items)) {
-      schema.items = param.items || param.schema?.items || { type: 'string' };
-    }
-
-    return schema;
-    return Object.keys(schema).length > 0 ? schema : null;
-  }
-
-  private resolveParameterRef(param: OpenAPIParameter | { $ref: string }): OpenAPIParameter | null {
-    // If it's not a reference, return as is
-    if (!('$ref' in param)) return param;
-    
-    // Handle the case where $ref might be undefined
-    if (!param.$ref) return null;
-    
-    // Resolve the reference (e.g., #/components/parameters/PetId)
-    const refPath = param.$ref.split('/').slice(1); // Remove the leading #
+    const refPath = ref.$ref.split('/').slice(1); // Remove the leading #
     let current: any = this.spec;
     
     for (const part of refPath) {
       if (!current || typeof current !== 'object' || !(part in current)) {
-        return null; // Invalid reference
+        return undefined;
       }
       current = current[part];
     }
     
-    // Ensure we have a valid parameter
-    if (current && typeof current === 'object' && 'name' in current && 'in' in current) {
-      return current as OpenAPIParameter;
-    }
-    
-    return null;
+    return current as OpenAPIV3.RequestBodyObject;
   }
 
   private resolveSchema(schema: any): any {
@@ -311,4 +214,131 @@ export class OpenAPIParser {
     // Handle primitive types
     return { ...schema };
   }
+
+  private normalizeParameter(param: OpenAPIV3.ParameterObject): OpenAPIParameter | null {
+    if (!param || !param.in) return null;
+    
+    // Ensure the parameter is in a valid location
+    const validLocations: ParameterLocation[] = ['query', 'header', 'path', 'cookie'];
+    if (!validLocations.includes(param.in as ParameterLocation)) return null;
+    
+    const normalized: OpenAPIParameter = {
+      ...param,
+      in: param.in as ParameterLocation,
+      schema: param.schema as JSONSchema7,
+      type: (param as any).type,
+      format: (param as any).format,
+      'enum': (param as any).enum,
+      default: (param as any).default
+    };
+    
+    return normalized;
+  }
+
+  private extractInputSchema(operation: OpenAPIOperation): JSONSchema7 {
+    const properties: Record<string, any> = {};
+    const required: string[] = [];
+
+    // Handle parameters
+    if (operation.parameters) {
+      for (const param of operation.parameters) {
+        const paramDef = this.resolveParameterRef(param);
+        if (!paramDef) continue;
+
+        const { name, in: paramIn, required: isRequired, schema, description } = paramDef;
+        if (!name || !paramIn) continue;
+        
+        // Skip parameters that aren't path, query, or header
+        if (!['path', 'query', 'header'].includes(paramIn)) continue;
+        
+        // Add to properties with proper type handling
+        const propertySchema: JSONSchema7 = {
+          type: (schema?.type as any) || 'string',
+          description,
+          ...(schema || {})
+        };
+        properties[name] = propertySchema;
+        
+        // Mark as required if needed
+        if (isRequired || paramIn === 'path') {
+          required.push(name);
+        }
+      }
+    }
+
+    // Handle request body
+    if (operation.requestBody && !('$ref' in operation.requestBody)) {
+      const content = operation.requestBody.content;
+      if (content && content['application/json']?.schema) {
+        const jsonContent = content['application/json'];
+        const bodySchema = this.resolveSchema(jsonContent.schema);
+        if (bodySchema) {
+          properties['body'] = bodySchema;
+          if (operation.requestBody.required) {
+            required.push('body');
+          }
+        }
+      }
+    }
+
+    return {
+      type: 'object',
+      properties,
+      required: required.length > 0 ? required : undefined,
+      additionalProperties: false
+    };
+  }
+
+  private convertParameterToSchema(param: OpenAPIParameter): JSONSchema7 | null {
+    if (!param) return null;
+    
+    // Create a basic schema with type information
+    const schema: JSONSchema7 & { deprecated?: boolean } = {
+      type: (param.schema?.type || (param as any).type || 'string') as JSONSchema7['type'],
+      description: param.description,
+      format: param.format || param.schema?.format,
+      enum: param.enum || param.schema?.enum,
+      default: (param as any).default,
+    };
+
+    // Add deprecated property if needed
+    if ((param as any).deprecated) {
+      schema.deprecated = true;
+    }
+
+    // Handle array types
+    if ((schema.type === 'array' || (param as any).type === 'array') && (param.items || param.schema?.items)) {
+      schema.items = param.items || param.schema?.items || { type: 'string' };
+    }
+
+    return Object.keys(schema).length > 0 ? schema : null;
+  }
+
+  private resolveParameterRef(param: OpenAPIParameter | { $ref: string }): OpenAPIParameter | null {
+    // If it's not a reference, return as is
+    if (!('$ref' in param)) return param;
+    
+    // Handle the case where $ref might be undefined
+    if (!param.$ref) return null;
+    
+    // Resolve the reference (e.g., #/components/parameters/PetId)
+    const refPath = param.$ref.split('/').slice(1); // Remove the leading #
+    let current: any = this.spec;
+    
+    for (const part of refPath) {
+      if (!current || typeof current !== 'object' || !(part in current)) {
+        return null; // Invalid reference
+      }
+      current = current[part];
+    }
+    
+    // Ensure we have a valid parameter
+    if (current && typeof current === 'object' && 'name' in current && 'in' in current) {
+      return current as OpenAPIParameter;
+    }
+    
+    return null;
+  }
+
+
 }

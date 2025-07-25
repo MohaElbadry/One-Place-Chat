@@ -2,19 +2,9 @@ import OpenAI from "openai";
 import * as http from 'http';
 import * as readline from "readline";
 import * as dotenv from "dotenv";
+import { MCPTool } from '../types.js';
 
 dotenv.config();
-
-export interface MCPTool {
-  name: string;
-  description: string;
-  inputSchema: {
-    type?: string;
-    properties?: Record<string, any>;
-    required?: string[];
-    path?: string; // API endpoint path
-  };
-}
 
 interface MCPResponse {
   content: Array<{
@@ -139,8 +129,12 @@ export class MCPGPTBridge {
                     }
                   });
                   
+                  // Get the base URL from the tool's endpoint or use a default
+                  const baseUrl = tool.endpoint?.baseUrl || 'http://petstore.swagger.io/v2';
+                  const path = tool.annotations?.path || '';
+                  
                   let curlCommand = `curl -X POST \
-  'http://petstore.swagger.io/v2${tool.inputSchema.path}${queryParams.toString() ? '?' + queryParams.toString() : ''}' \
+  '${baseUrl}${path}${queryParams.toString() ? '?' + queryParams.toString() : ''}' \
   -H 'accept: application/json'`;
                 
                   if (Object.keys(bodyParams).length > 0) {
@@ -345,11 +339,15 @@ export class MCPGPTBridge {
         throw new Error(`Tool ${toolName} not found`);
       }
 
+      // Extract the path from the tool annotations
+      const path = tool.annotations?.path || '';
+
       // Create a prompt for OpenAI to generate the cURL command
       const prompt = `Generate a cURL command for the following API endpoint:
 
 Tool Name: ${toolName}
 Description: ${tool.description}
+Path: ${path}
 Parameters: ${JSON.stringify(parameters, null, 2)}
 
 Please provide a properly formatted cURL command that can be used to call this API endpoint with the given parameters. 
