@@ -49,6 +49,29 @@ const logger = {
     console.log(chalk.gray('\n```bash'));
     console.log(chalk.white(cmd));
     console.log(chalk.gray('```\n'));
+  },
+  response: (data: any, statusCode?: number, headers?: Record<string, string>, timing?: number) => {
+    console.log(chalk.gray('\n--- RESPONSE ' + (statusCode ? `[${statusCode}] ` : '') + (timing ? `(${timing}ms) ` : '') + '---'));
+    if (headers) {
+      console.log(chalk.gray('\n### Headers ###'));
+      Object.entries(headers).forEach(([key, value]) => {
+        console.log(chalk.blue(`${key}:`), value);
+      });
+    }
+    console.log(chalk.gray('\n### Body ###'));
+    if (typeof data === 'string') {
+      try {
+        // Try to parse and format JSON
+        const json = JSON.parse(data);
+        console.log(chalk.green(JSON.stringify(json, null, 2)));
+      } catch (e) {
+        // If not JSON, print as-is
+        console.log(chalk.green(data));
+      }
+    } else {
+      console.log(chalk.green(JSON.stringify(data, null, 2)));
+    }
+    console.log(chalk.gray('\n--- END RESPONSE ---\n'));
   }
 };
 
@@ -361,6 +384,108 @@ class MCPCurlGenerator {
     await this.generateToolCurl(tool);
   }
 
+  private async executeCurlCommand(curlCommand: string): Promise<void> {
+    const { shouldExecute } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'shouldExecute',
+      message: 'Execute this cURL command now?',
+      default: true
+    }]);
+
+    if (!shouldExecute) return;
+
+    logger.info('🚀 Executing API call...');
+    
+    try {
+      // Extract method, URL, headers, and body from the cURL command
+      const methodMatch = curlCommand.match(/-X\s+(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)/i);
+      const method = methodMatch ? methodMatch[1].toUpperCase() : 'GET';
+      
+      // First try to match a quoted URL (single or double quotes)
+      let urlMatch = curlCommand.match(/(?:'|")(https?[^'"\s]+)(?:'|")/);
+      
+      // If no quoted URL found, try to match an unquoted URL
+      if (!urlMatch) {
+        urlMatch = curlCommand.match(/curl\s+(?:-X\s+\w+\s+)?(https?:\/\/[^\s'"`]+)/i);
+      }
+      
+      if (!urlMatch || !urlMatch[1]) {
+        console.error('Debug - cURL command:', curlCommand);
+        throw new Error('Could not extract URL from cURL command');
+      }
+      const url = urlMatch[1];
+      
+      // Extract headers
+      const headerMatches = [...curlCommand.matchAll(/-H\s+['"]([^:]+):\s*([^'"]+)['"]/g)];
+      const headers = headerMatches.reduce((acc, match) => {
+        acc[match[1].trim()] = match[2].trim();
+        return acc;
+      }, {} as Record<string, string>);
+      
+      // Extract body if present
+      let body: any = undefined;
+      const bodyMatch = curlCommand.match(/-d\s+['"]([^'"\n]+)['"]/);
+      if (bodyMatch) {
+        try {
+          body = JSON.parse(bodyMatch[1]);
+        } catch (e) {
+          body = bodyMatch[1];
+        }
+      }
+
+      const startTime = Date.now();
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined
+      });
+      
+      const responseTime = Date.now() - startTime;
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      
+      const responseData = await response.text().catch(() => '');
+      
+      logger.response(
+        responseData,
+        response.status,
+        responseHeaders,
+        responseTime
+      );
+      
+    } catch (error) {
+      logger.error(`Failed to execute cURL command: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private displayResponse(response: any, statusCode?: number, headers?: Record<string, string>, timing?: number): void {
+    logger.response(response, statusCode, headers, timing);
+    
+    // Additional response analysis could go here
+    if (statusCode && statusCode >= 400) {
+      logger.warning(`The server responded with an error status: ${statusCode}`);
+      
+      // Common HTTP status code explanations
+      const statusMessages: Record<number, string> = {
+        400: 'Bad Request - The request could not be understood or was missing required parameters.',
+        401: 'Unauthorized - Authentication failed or user does not have permissions for the requested operation.',
+        403: 'Forbidden - Authentication succeeded but authenticated user does not have access to the resource.',
+        404: 'Not Found - Resource was not found.',
+        429: 'Too Many Requests - Rate limit exceeded.',
+        500: 'Internal Server Error - The server encountered an unexpected condition.',
+        502: 'Bad Gateway - The server received an invalid response from the upstream server.',
+        503: 'Service Unavailable - The server is currently unavailable (overloaded or down).',
+        504: 'Gateway Timeout - The server did not receive a timely response from the upstream server.'
+      };
+      
+      if (statusMessages[statusCode]) {
+        console.log(chalk.yellow(`💡 ${statusMessages[statusCode]}`));
+      }
+    }
+  }
+
   private async generateToolCurl(tool: MCPTool): Promise<void> {
     logger.title(`Generate cURL: ${tool.name}`);
     logger.log(`📝 Description: ${tool.description || 'No description'}`);
@@ -438,7 +563,10 @@ class MCPCurlGenerator {
 
       logger.success('✅ Generated cURL Command:');
       logger.curl(curlCommand);
-
+      
+      // Ask to execute the cURL command
+      await this.executeCurlCommand(curlCommand);
+      
       // Ask if they want to generate another or go back
       const { nextAction } = await inquirer.prompt([{
         type: 'list',

@@ -11,7 +11,7 @@ export interface MCPTool {
   
   /** Human-readable description of what the tool does */
   description: string;
-  
+  remove
   /** JSON Schema defining the input parameters */
   inputSchema: JSONSchema7;
   
@@ -69,45 +69,4 @@ export interface OpenAPIOperation extends Omit<OpenAPIV3.OperationObject, 'param
   parameters?: (OpenAPIParameter | OpenAPIV3.ReferenceObject)[];
   requestBody?: OpenAPIV3.RequestBodyObject | OpenAPIV3.ReferenceObject;
   responses: OpenAPIV3.ResponsesObject;
-}
-
-// Document Processing Types
-export type DocumentType = {
-  openapi?: string;
-  swagger?: string;
-  info?: {
-    title?: string;
-    version?: string;
-    description?: string;
-  };
-  paths?: Record<string, any>;
-  [key: string]: any;
-};
-
-export type DocumentChunkType = 'paths' | 'definitions' | 'components' | 'security' | 'tags' | 'other';
-
-export interface DocumentChunk {
-  id: string;
-  content: any;
-  type: DocumentChunkType;
-  startLine: number;
-  endLine: number;
-  references: string[];
-}
-
-export interface EndpointInfo {
-  path: string;
-  method: string;
-  operationId?: string;
-  summary?: string;
-  description?: string;
-  parameters?: any[];
-  requestBody?: any;
-  responses?: Record<string, any>;
-}
-
-export interface DocumentValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
 }
