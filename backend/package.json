@@ -15,15 +15,12 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
-    "start": "node --import tsx src/index.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec \"npm run build && node --import tsx src/index.ts\"",
     "generate-tools": "npm run start -- generate",
-    "generate:single": "npm run start -- generate --single-file",
-    "generate:individual": "npm run start -- generate --individual-files",
-    "start-server": "npm run start -- start-server",
-    "tool-helper": "node --import tsx src/cli/tool-helper.ts",
-    "interactive": "node --import tsx src/cli/interactive-tool-helper.ts",
-    "enhanced-tool": "node --import tsx src/cli/enhanced-tool-helper.ts",
+    "start": "node --import tsx src/index.ts",
+    "start:autogen": "node --import tsx dist/server-autogen.js",
+    "dev:autogen": "nodemon --watch 'src/**/*.ts' --exec 'npm run build && node --import tsx dist/server-autogen.js'",
+    "chat": "node --import tsx src/cli/chat-interface.ts",
     "mcp-test": "node --import tsx src/cli/mcp-testing-cli.ts"
   },
   "keywords": [

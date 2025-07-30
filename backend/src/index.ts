@@ -3,6 +3,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { program } from 'commander';
+import { MCPTool } from './types.js';
 import { OpenAPIParser } from './utils/OpenAPIParser.js';
 
 
@@ -86,12 +87,12 @@ program
       
       // Load tools from the directory
       const toolFiles = await fs.readdir(options.toolsDir);
-      const tools = [];
+      const tools: MCPTool[] = [];
       
       for (const file of toolFiles) {
         if (file.endsWith('.json')) {
           const content = await fs.readFile(path.join(options.toolsDir, file), 'utf-8');
-          const tool = JSON.parse(content);
+          const tool: MCPTool = JSON.parse(content); // Use the MCPTool interface
           tools.push(tool);
         }
       }

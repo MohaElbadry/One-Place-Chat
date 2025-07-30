@@ -11,7 +11,7 @@ export interface MCPTool {
   
   /** Human-readable description of what the tool does */
   description: string;
-  remove
+  
   /** JSON Schema defining the input parameters */
   inputSchema: JSONSchema7;
   
