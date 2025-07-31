@@ -26,7 +26,12 @@ export class CurlExecutor {
     error?: string;
     statusCode?: number;
   }> {
-    const curlCommand = this.generateCurlCommand(tool, parameters);
+    let curlCommand = this.generateCurlCommand(tool, parameters);
+    // Remove any literal \n sequences to avoid curl host parsing errors
+    // Convert multi-line to single line using backslash continuations
+    curlCommand = curlCommand
+      .replace(/\\n/g, ' \\') // literal "\n" in string -> " \" for readability
+      .replace(/[\r\n]+/g, ' \\ ');
     
     try {
       const { stdout, stderr } = await execAsync(curlCommand, { maxBuffer: 1024 * 1024 * 5 });
