@@ -568,56 +568,133 @@ export class AdvancedAPIToolMatcher {
   /**
    * Generate a cURL command for the given tool and parameters
    */
-  generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
-    const { method, baseUrl, path } = tool.endpoint;
-    let url = `${baseUrl}${path}`;
+  // generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
+  //   const { method, baseUrl, path } = tool.endpoint;
+  //   let url = `${baseUrl}${path}`;
 
+  //   // Replace path parameters e.g. /users/{id}
+  //   for (const [key, value] of Object.entries(parameters)) {
+  //     if (url.includes(`{${key}}`)) {
+  //       url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
+  //       delete parameters[key];
+  //     }
+  //   }
+
+  //   // Query parameters
+  //   const queryParams = new URLSearchParams();
+  //   for (const [key, value] of Object.entries(parameters)) {
+  //     if (value !== undefined && value !== null) {
+  //       queryParams.append(key, String(value));
+  //     }
+  //   }
+  //   const queryString = queryParams.toString();
+  //   if (queryString) {
+  //     url += (url.includes('?') ? '&' : '?') + queryString;
+  //   }
+
+  //   // Headers
+  //   const headers: Record<string, any> = {
+  //     'Content-Type': 'application/json',
+  //     ...(parameters.headers || {})
+  //   };
+
+  //   // Build cURL string with line continuations for readability
+  //   let curl = `curl -X ${method.toUpperCase()} "${url}"`;
+
+  //   // Append headers with backslash-newline continuation
+  //   for (const [key, value] of Object.entries(headers)) {
+  //     if (value) {
+  //       curl += ` \\\n  -H "${key}: ${value}"`;
+  //     }
+  //   }
+
+  //   // Separate body parameters (for POST/PUT/PATCH)
+  //   const bodyParams = { ...parameters } as Record<string, any>;
+  //   delete bodyParams.headers;
+
+  //   if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && Object.keys(bodyParams).length > 0) {
+  //     curl += ` \\\n  -d '${JSON.stringify(bodyParams, null, 2)}'`;
+  //   }
+
+  //   return curl;
+  // }
+  generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
+    let { method, path, baseUrl } = tool.endpoint;
+    let url = `${baseUrl}${path}`;
+    
+    // Make a copy of parameters to avoid mutating the original
+    const params = { ...parameters };
+    
     // Replace path parameters e.g. /users/{id}
-    for (const [key, value] of Object.entries(parameters)) {
+    for (const [key, value] of Object.entries(params)) {
       if (url.includes(`{${key}}`)) {
         url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
-        delete parameters[key];
+        delete params[key];
       }
     }
-
-    // Query parameters
-    const queryParams = new URLSearchParams();
-    for (const [key, value] of Object.entries(parameters)) {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, String(value));
+  
+    // Headers
+    const headers: Record<string, any> = {
+      'Content-Type': 'application/json',
+      ...(params.headers || {})
+    };
+    
+    // Remove headers from parameters
+    delete params.headers;
+  
+    // Determine if we should use query params or body
+    const isBodyRequest = ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase());
+    let bodyParams: Record<string, any> = {};
+    let queryParams = new URLSearchParams();
+  
+    // For body requests, all remaining params go into the body
+    if (isBodyRequest) {
+      bodyParams = { ...params };  // Use all remaining params as the body
+    } else {
+      // For non-body requests, add all remaining params to query string
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
       }
     }
+    
+    // Add query string if not empty
     const queryString = queryParams.toString();
     if (queryString) {
       url += (url.includes('?') ? '&' : '?') + queryString;
     }
-
-    // Headers
-    const headers: Record<string, any> = {
-      'Content-Type': 'application/json',
-      ...(parameters.headers || {})
-    };
-
+  
     // Build cURL string with line continuations for readability
     let curl = `curl -X ${method.toUpperCase()} "${url}"`;
-
+  
     // Append headers with backslash-newline continuation
     for (const [key, value] of Object.entries(headers)) {
       if (value) {
         curl += ` \\\n  -H "${key}: ${value}"`;
       }
     }
-
-    // Separate body parameters (for POST/PUT/PATCH)
-    const bodyParams = { ...parameters } as Record<string, any>;
-    delete bodyParams.headers;
-
-    if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && Object.keys(bodyParams).length > 0) {
-      curl += ` \\\n  -d '${JSON.stringify(bodyParams, null, 2)}'`;
+  
+    // Add body for POST/PUT/PATCH - Fixed formatting
+    if (isBodyRequest && Object.keys(bodyParams).length > 0) {
+      // Remove any 'body' wrapper if it exists
+      const requestBody = bodyParams.body ? bodyParams.body : bodyParams;
+      
+      // Format the JSON body properly with indentation
+      const jsonBody = JSON.stringify(requestBody, null, 2);
+      // Split into lines and add proper indentation
+      const bodyLines = jsonBody.split('\n');
+      const formattedBody = bodyLines.map((line, index) => {
+        if (index === 0) return line; // First line (opening brace)
+        return `    ${line}`; // Indent subsequent lines
+      }).join('\n');
+      
+      curl += ` \\\n  -d '${formattedBody}'`;
     }
-
+  
     return curl;
   }
+  
    /**
     * Return tools most similar to the query with their scores
    */
