@@ -15,6 +15,16 @@ class ChatInterface {
     private tools: MCPTool[] = [];
     private toolMatcher: APIToolMatcher;
     private executor: CurlExecutor;
+    /**
+     * If a tool has been selected but still requires parameters, we store the
+     * partially-filled parameter object here so we can collect them over
+     * subsequent user messages.
+     */
+    private pendingMatch: {
+        tool: MCPTool;
+        parameters: Record<string, any>;
+        missing: string[];
+    } | null = null;
 
     constructor() {
         this.toolMatcher = new APIToolMatcher();
@@ -33,11 +43,17 @@ class ChatInterface {
 
     private async startChat() {
         while (true) {
+            // If we are waiting for the user to supply missing parameters,
+            // tweak the prompt so it feels like a conversational follow-up.
+            const promptLabel = this.pendingMatch && this.pendingMatch.missing.length > 0
+                ? `Provide value for "${this.pendingMatch.missing[0]}"`
+                : 'You';
+
             const { message } = await inquirer.prompt([
                 {
                     type: 'input',
                     name: 'message',
-                    message: 'You:',
+                    message: `${promptLabel}:`,
                     validate: (input: string) => input.trim() !== '' || 'Please enter a message'
                 }
             ]);
@@ -45,6 +61,16 @@ class ChatInterface {
             if (message.toLowerCase() === 'exit') {
                 console.log(chalk.yellow('\n👋 Goodbye!'));
                 process.exit(0);
+            }
+
+            // --------------------------------------------------------------
+            // 1. Handle the case where we are still collecting parameters.
+            // --------------------------------------------------------------
+            if (this.pendingMatch) {
+                await this.handlePendingParameters(message.trim());
+                // Either we got all params (and handled execution) or we need
+                // more. In either case, skip the rest of this loop iteration.
+                continue;
             }
 
             try {
@@ -78,50 +104,114 @@ class ChatInterface {
                     });
                 }
 
-                // Generate cURL command
-                const curlCommand = this.toolMatcher.generateCurlCommand(
-                    toolMatch.tool,
-                    toolMatch.parameters
-                );
+                // ----------------------------------------------------------
+                // 2. Check if the matched tool is missing required params.
+                // ----------------------------------------------------------
+                const requiredParams: string[] = toolMatch.tool.inputSchema?.required as string[] ?? [];
+                const providedParams = Object.keys(toolMatch.parameters || {});
+                const missingParams = requiredParams.filter(p => !providedParams.includes(p));
 
-                console.log(chalk.green('\n🔧 Generated cURL command:'));
-                console.log(chalk.cyan(curlCommand));
+                if (missingParams.length > 0) {
+                    console.log(chalk.yellow(`\n🛠  The selected API requires additional parameters: ${missingParams.join(', ')}`));
+                    console.log(chalk.yellow(`👉 Please provide a value for "${missingParams[0]}" to continue.`));
 
-                // Ask if user wants to execute
-                const { execute } = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'execute',
-                        message: 'Do you want to execute this command?',
-                        default: true
-                    }
-                ]);
-
-                if (execute) {
-                    console.log(chalk.blue('\n🚀 Executing API call...\n'));
-                    try {
-                        const result = await this.executor.executeCurl(curlCommand);
-                        console.log(chalk.green('✅ API Response:'));
-                        console.log(chalk.gray('--- RESPONSE ---'));
-                        
-                        // Try to pretty print JSON if the response is JSON
-                        try {
-                            const jsonResponse = JSON.parse(result);
-                            console.log(JSON.stringify(jsonResponse, null, 2));
-                        } catch {
-                            // If not JSON, print as is
-                            console.log(result);
-                        }
-                        
-                        console.log(chalk.gray('----------------\n'));
-                    } catch (error: any) {
-                        console.error(chalk.red('\n❌ Error executing request:'));
-                        console.error(chalk.red(error.message));
-                    }
+                    this.pendingMatch = {
+                        tool: toolMatch.tool,
+                        parameters: { ...toolMatch.parameters },
+                        missing: missingParams
+                    };
+                    // Go back to top of loop to ask for the first value
+                    continue;
                 }
+
+                await this.generateAndOptionallyExecute(toolMatch.tool, toolMatch.parameters);
 
             } catch (error) {
                 console.error(chalk.red('\n❌ Error:'), error);
+            }
+        }
+    }
+
+    /**
+     * When we have a pending tool that still needs parameters, this method
+     * attempts to parse the user input, update the parameter object, and either
+     * ask for more or move on to generating the curl command.
+     */
+    private async handlePendingParameters(userInput: string) {
+        if (!this.pendingMatch) return;
+
+        const { tool, parameters, missing } = this.pendingMatch;
+
+        // Attempt to parse input as JSON first (allows user to paste an object).
+        let parsed: Record<string, any> = {};
+        try {
+            parsed = JSON.parse(userInput);
+        } catch {
+            // Not JSON – try key=value pairs
+            const kvRegex = /(\w+)\s*=\s*([^,\s]+)/g;
+            let match: RegExpExecArray | null;
+            while ((match = kvRegex.exec(userInput)) !== null) {
+                parsed[match[1]] = match[2];
+            }
+
+            // If we still have nothing, treat entire input as the next param value
+            if (Object.keys(parsed).length === 0 && missing.length > 0) {
+                parsed[missing[0]] = userInput;
+            }
+        }
+
+        Object.assign(parameters, parsed);
+
+        // Re-evaluate missing parameters
+        const stillMissing = missing.filter(p => parameters[p] === undefined);
+
+        if (stillMissing.length > 0) {
+            // Update pendingMatch with remaining missing params and ask again.
+            this.pendingMatch.missing = stillMissing;
+            console.log(chalk.yellow(`\n🔄 Need value for "${stillMissing[0]}"`));
+            return;
+        }
+
+        // All parameters gathered – generate curl and execute.
+        await this.generateAndOptionallyExecute(tool, parameters);
+        // Clear pending state.
+        this.pendingMatch = null;
+    }
+
+    /** Helper to produce curl and optionally execute it. */
+    private async generateAndOptionallyExecute(tool: MCPTool, params: Record<string, any>) {
+        const curlCommand = this.toolMatcher.generateCurlCommand(tool, params);
+
+        console.log(chalk.green('\n🔧 Generated cURL command:'));
+        console.log(chalk.cyan(curlCommand));
+
+        const { execute } = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'execute',
+                message: 'Do you want to execute this command?',
+                default: true
+            }
+        ]);
+
+        if (execute) {
+            console.log(chalk.blue('\n🚀 Executing API call...\n'));
+            try {
+                const result = await this.executor.executeCurl(curlCommand);
+                console.log(chalk.green('✅ API Response:'));
+                console.log(chalk.gray('--- RESPONSE ---'));
+
+                try {
+                    const jsonResponse = JSON.parse(result);
+                    console.log(JSON.stringify(jsonResponse, null, 2));
+                } catch {
+                    console.log(result);
+                }
+
+                console.log(chalk.gray('----------------\n'));
+            } catch (error: any) {
+                console.error(chalk.red('\n❌ Error executing request:'));
+                console.error(chalk.red(error.message));
             }
         }
     }
