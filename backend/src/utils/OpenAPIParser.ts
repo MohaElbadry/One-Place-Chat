@@ -287,13 +287,13 @@ export class OpenAPIParser {
   private extractInputSchema(operation: OpenAPIOperation): JSONSchema7 {
     const properties: Record<string, any> = {};
     const required: string[] = [];
-
-    // Handle parameters
+  
+    // Handle parameters (query, path, header)
     if (operation.parameters) {
       for (const param of operation.parameters) {
         const paramDef = this.resolveParameterRef(param);
         if (!paramDef) continue;
-
+  
         const {
           name,
           in: paramIn,
@@ -301,43 +301,72 @@ export class OpenAPIParser {
           schema,
           description,
         } = paramDef;
+        
         if (!name || !paramIn) continue;
-
-        // Skip parameters that aren't path, query, or header
-        if (!["path", "query", "header"].includes(paramIn)) continue;
-
-        // Add to properties with proper type handling
+  
+        // Only include path, query, and header parameters
+        if (!['path', 'query', 'header'].includes(paramIn)) continue;
+  
+        // Create property schema
         const propertySchema: JSONSchema7 = {
-          type: (schema?.type as any) || "string",
+          type: (schema?.type as any) || 'string',
           description,
           ...(schema || {}),
         };
-        properties[name] = propertySchema;
-
-        // Mark as required if needed
-        if (isRequired || paramIn === "path") {
-          required.push(name);
+  
+        // Handle enums
+        if ((param as any).enum) {
+          propertySchema.enum = (param as any).enum;
         }
-      }
-    }
-
-    // Handle request body
-    if (operation.requestBody && !("$ref" in operation.requestBody)) {
-      const content = operation.requestBody.content;
-      if (content && content["application/json"]?.schema) {
-        const jsonContent = content["application/json"];
-        const bodySchema = this.resolveSchema(jsonContent.schema);
-        if (bodySchema) {
-          properties["body"] = bodySchema;
-          if (operation.requestBody.required) {
-            required.push("body");
+  
+        // Handle default values
+        if ((param as any).default !== undefined) {
+          propertySchema.default = (param as any).default;
+        }
+  
+        // Add to properties
+        properties[name] = propertySchema;
+  
+        // Mark as required if it's a path parameter or explicitly marked as required
+        if (isRequired || paramIn === 'path') {
+          if (!required.includes(name)) {
+            required.push(name);
           }
         }
       }
     }
-
+  
+    // Handle request body
+    if (operation.requestBody && !('$ref' in operation.requestBody)) {
+      const content = operation.requestBody.content;
+      if (content && content['application/json']?.schema) {
+        const bodySchema = this.resolveSchema(content['application/json'].schema);
+        if (bodySchema) {
+          // If the schema is an object with properties, include them directly
+          if (bodySchema.type === 'object' && bodySchema.properties) {
+            Object.assign(properties, bodySchema.properties);
+            
+            // Add required fields from the body schema
+            if (Array.isArray(bodySchema.required)) {
+              for (const field of bodySchema.required) {
+                if (!required.includes(field as string)) {
+                  required.push(field as string);
+                }
+              }
+            }
+          } else {
+            // For non-object schemas, include as a single 'body' parameter
+            properties.body = bodySchema;
+            if (operation.requestBody.required) {
+              required.push('body');
+            }
+          }
+        }
+      }
+    }
+  
     return {
-      type: "object",
+      type: 'object',
       properties,
       required: required.length > 0 ? required : undefined,
       additionalProperties: false,
