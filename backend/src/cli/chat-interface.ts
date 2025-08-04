@@ -4,10 +4,14 @@ import chalk from 'chalk';
 import { ToolLoader } from '../tools/loader.js';
 import { ConversationalChatEngine, ChatResponse } from '../utils/ConversationalChatEngine.js';
 import { MCPTool } from '../types.js';
+import { ToolMatcher } from '../utils/ToolMatcher.js';
+import { CommandExecutor } from '../utils/CommandExecutor.js';
 
 class ChatInterface {
     private tools: MCPTool[] = [];
     private chatEngine: ConversationalChatEngine;
+    private toolMatcher: ToolMatcher;
+    private executor: CommandExecutor;
     private currentConversationId: string | null = null;
 
      /**
@@ -15,7 +19,7 @@ class ChatInterface {
      * partially-filled parameter object here so we can collect them over
      * subsequent user messages.
      */
-     private pendingMatch: {
+    private pendingMatch: {
         tool: MCPTool;
         parameters: Record<string, any>;
         missing: string[];
@@ -23,6 +27,8 @@ class ChatInterface {
 
     constructor() {
         this.chatEngine = new ConversationalChatEngine();
+        this.toolMatcher = new ToolMatcher();
+        this.executor = new CommandExecutor();
     }
 
     async initialize() {
@@ -112,6 +118,62 @@ class ChatInterface {
         this.startChat();
     }
 
+    private getConfidenceColor(confidence: number) {
+        if (confidence > 0.8) return chalk.green;
+        if (confidence > 0.5) return chalk.yellow;
+        return chalk.red;
+    }
+
+    private displayResponse(response: ChatResponse) {
+        if (response.message) {
+            console.log(chalk.white(response.message));
+        }
+        
+        // Handle any additional data in the response
+        if ((response as any).data) {
+            console.log(chalk.gray('--- DATA ---'));
+            try {
+                const data = (response as any).data;
+                const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+                console.log(JSON.stringify(jsonData, null, 2));
+            } catch (e) {
+                console.log((response as any).data);
+            }
+        }
+    }
+
+    private async handleClarification(response: ChatResponse) {
+        if (!response.clarificationRequest) return;
+        
+        console.log(chalk.yellow('\n❓ ' + response.clarificationRequest.message));
+        
+        // If there are specific fields we need, show them
+        if (response.clarificationRequest.fields?.length) {
+            console.log(chalk.yellow('\nPlease provide the following information:'));
+            response.clarificationRequest.fields.forEach((field, index) => {
+                console.log(chalk.yellow(`${index + 1}. ${field.name}: ${field.description}`));
+                if (field.possibleValues?.length) {
+                    console.log(chalk.yellow(`   Possible values: ${field.possibleValues.join(', ')}`));
+                }
+            });
+        }
+        
+        const { answer } = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'answer',
+                message: 'Your response:',
+                validate: (input: string) => input.trim() !== '' || 'Please provide a response'
+            }
+        ]);
+        
+        // Process the clarification response
+        if (this.currentConversationId) {
+            const clarificationResponse = await this.chatEngine.processMessage(this.currentConversationId, answer);
+            this.displayResponse(clarificationResponse);
+        }
+    }
+
     private formatDate(date: Date): string {
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
@@ -165,6 +227,11 @@ class ChatInterface {
             }
 
             try {
+                // Ensure we have a valid conversation ID
+                if (!this.currentConversationId) {
+                    this.currentConversationId = this.chatEngine.startConversation();
+                }
+                
                 // Process message through conversational engine
                 const response: ChatResponse = await this.chatEngine.processMessage(this.currentConversationId, message);
                 
@@ -175,26 +242,48 @@ class ChatInterface {
                 // Handle clarification if needed
                 if (response.needsClarification && response.clarificationRequest) {
                     await this.handleClarification(response);
+                    continue;
                 }
 
                 // Save conversation periodically
                 await this.chatEngine.saveConversation(this.currentConversationId);
 
+                // Find the best matching tool
+                const result = await this.toolMatcher.findBestMatch(message, this.tools);
+                
+                if (!result || !result.toolMatch) {
+                    console.log(chalk.yellow('\n❌ No matching tool found for your request.'));
+                    continue;
+                }
+                
+                const { toolMatch, confidence } = result;
+
                 console.log(chalk.blue(`\n🤖 ${chalk.bold('Best Match:')} ${chalk.bold(toolMatch.tool.name)}`));
                 console.log(chalk.gray(`📝 ${toolMatch.tool.description}`));
-                console.log(chalk.gray(`🔗 ${chalk.bold('Endpoint:')} ${toolMatch.tool.endpoint.method.toUpperCase()} ${toolMatch.tool.endpoint.baseUrl}${toolMatch.tool.endpoint.path}`));
+                
+                if (toolMatch.tool.endpoint) {
+                    console.log(chalk.gray(`🔗 ${chalk.bold('Endpoint:')} ${toolMatch.tool.endpoint.method.toUpperCase()} ${toolMatch.tool.endpoint.baseUrl}${toolMatch.tool.endpoint.path}`));
+                }
+                
+                const confidenceColor = this.getConfidenceColor(confidence);
                 console.log(confidenceColor(`🎯 Confidence: ${Math.round(confidence * 100)}%`));
-                console.log(chalk.blue(`💡 ${toolMatch.reasoning}`));
+                
+                if (toolMatch.reasoning) {
+                    console.log(chalk.blue(`💡 ${toolMatch.reasoning}`));
+                }
                 
                 // Show alternative suggestions if confidence is not very high
-                
                 if (confidence < 0.8) {
                     console.log(chalk.gray('\n🔍 Did you mean one of these?'));
                     // Show top 3 alternative commands
                     const alternatives = await this.toolMatcher.findSimilarTools(message, 3);
-                    alternatives.forEach((alt, index) => {
-                        console.log(chalk.gray(`  ${index + 1}. ${alt.tool.name} (${Math.round(alt.score * 100)}%)`));
-                    });
+                    if (alternatives.length > 0) {
+                        alternatives.forEach((alt, index) => {
+                            console.log(chalk.gray(`  ${index + 1}. ${alt.tool.name} (${Math.round(alt.score * 100)}%)`));
+                        });
+                    } else {
+                        console.log(chalk.gray('  No similar tools found.'));
+                    }
                 }
 
                 // ----------------------------------------------------------
@@ -256,7 +345,7 @@ class ChatInterface {
         Object.assign(parameters, parsed);
 
         // Re-evaluate missing parameters
-        const stillMissing = missing.filter(p => parameters[p] === undefined);
+        const stillMissing = missing.filter((p: string) => parameters[p] === undefined);
 
         if (stillMissing.length > 0) {
             // Update pendingMatch with remaining missing params and ask again.
@@ -297,7 +386,7 @@ class ChatInterface {
                 try {
                     const jsonResponse = JSON.parse(result);
                     console.log(JSON.stringify(jsonResponse, null, 2));
-                } catch {
+                } catch (e) {
                     console.log(result);
                 }
 
