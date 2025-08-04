@@ -44,6 +44,13 @@ export interface MCPTool {
     method: HttpMethod;
     path: string;
     baseUrl: string;
+    parameters?: Array<{
+      name: string;
+      in: 'query' | 'path' | 'header' | 'body';
+      required: boolean;
+      description: string;
+      type: string;
+    }>;
   };
   
   /** Security requirements */
@@ -69,4 +76,59 @@ export interface OpenAPIOperation extends Omit<OpenAPIV3.OperationObject, 'param
   parameters?: (OpenAPIParameter | OpenAPIV3.ReferenceObject)[];
   requestBody?: OpenAPIV3.RequestBodyObject | OpenAPIV3.ReferenceObject;
   responses: OpenAPIV3.ResponsesObject;
+}
+
+export interface ConversationContext {
+  id: string;
+  messages: ConversationMessage[];
+  metadata: {
+    startTime: Date;
+    lastActivity: Date;
+    userPreferences?: Record<string, any>;
+    extractedInfo?: Record<string, any>;
+  };
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  metadata?: {
+    toolUsed?: string;
+    parameters?: Record<string, any>;
+    confidence?: number;
+    needsClarification?: boolean;
+    missingInfo?: string[];
+  };
+}
+
+export interface MissingInfoAnalysis {
+  hasMissingInfo: boolean;
+  missingFields: MissingField[];
+  confidence: number;
+  suggestedQuestions: string[];
+}
+
+export interface MissingField {
+  name: string;
+  description: string;
+  type: 'required' | 'optional';
+  possibleValues?: string[];
+  examples?: string[];
+}
+
+export interface ClarificationRequest {
+  type: 'missing_required' | 'ambiguous_intent' | 'parameter_validation' | 'confirmation';
+  message: string;
+  fields: MissingField[];
+  context?: Record<string, any>;
+}
+
+export interface ConversationState {
+  isAwaitingInput: boolean;
+  pendingTool?: MCPTool;
+  pendingParameters?: Record<string, any>;
+  clarificationRequest?: ClarificationRequest;
+  extractedInfo: Record<string, any>;
 }
