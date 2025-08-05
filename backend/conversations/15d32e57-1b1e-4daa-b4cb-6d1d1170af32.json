@@ -1,0 +1,35 @@
+{
+  "conversation": {
+    "id": "15d32e57-1b1e-4daa-b4cb-6d1d1170af32",
+    "messages": [
+      {
+        "id": "fba17d0b-a7d4-44dc-ab32-3c53124f91b2",
+        "role": "assistant",
+        "content": "Hello! I'm here to help you interact with APIs. Just tell me what you want to do in natural language, and I'll guide you through the process! 🚀",
+        "timestamp": "2025-08-05T20:14:07.858Z"
+      },
+      {
+        "id": "9093e30a-007b-4128-b8d9-0d3777c9d94c",
+        "role": "user",
+        "content": "i want to get json",
+        "timestamp": "2025-08-05T20:14:15.462Z"
+      },
+      {
+        "id": "43eff773-683b-4a5b-a9a0-5334b1be7322",
+        "role": "assistant",
+        "content": "Great! I can help you with absolutely 302 redirects n times..\n\n❓ **Please provide the following information:**\n\u001b[31m1. **n** (required): n\u001b[0m\n\n💡 **Tip**: You can provide multiple fields at once, like \"name: leo, category: dogs, status: available\"",
+        "timestamp": "2025-08-05T20:14:17.369Z"
+      }
+    ],
+    "metadata": {
+      "startTime": "2025-08-05T20:14:07.858Z",
+      "lastActivity": "2025-08-05T20:14:17.369Z",
+      "userPreferences": {},
+      "extractedInfo": {}
+    }
+  },
+  "state": {
+    "isAwaitingInput": false,
+    "extractedInfo": {}
+  }
+}

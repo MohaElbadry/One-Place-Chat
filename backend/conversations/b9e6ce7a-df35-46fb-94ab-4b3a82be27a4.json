@@ -1,0 +1,35 @@
+{
+  "conversation": {
+    "id": "b9e6ce7a-df35-46fb-94ab-4b3a82be27a4",
+    "messages": [
+      {
+        "id": "4ef1e776-e5c9-4e50-a53e-5ca9bb7319eb",
+        "role": "assistant",
+        "content": "Hello! I'm here to help you interact with APIs. Just tell me what you want to do in natural language, and I'll guide you through the process! 🚀",
+        "timestamp": "2025-08-05T20:15:07.930Z"
+      },
+      {
+        "id": "3f9ed71a-e490-4cb4-bd57-6a457bb154d3",
+        "role": "user",
+        "content": "i want to get XML",
+        "timestamp": "2025-08-05T20:15:11.410Z"
+      },
+      {
+        "id": "814130a6-7026-4e0e-b539-0f25c9eb2184",
+        "role": "assistant",
+        "content": "Great! I can help you with absolutely 302 redirects n times..\n\n❓ **Please provide the following information:**\n\u001b[31m1. **n** (required): n\u001b[0m\n\n💡 **Tip**: You can provide multiple fields at once, like \"name: leo, category: dogs, status: available\"",
+        "timestamp": "2025-08-05T20:15:12.896Z"
+      }
+    ],
+    "metadata": {
+      "startTime": "2025-08-05T20:15:07.930Z",
+      "lastActivity": "2025-08-05T20:15:12.896Z",
+      "userPreferences": {},
+      "extractedInfo": {}
+    }
+  },
+  "state": {
+    "isAwaitingInput": false,
+    "extractedInfo": {}
+  }
+}

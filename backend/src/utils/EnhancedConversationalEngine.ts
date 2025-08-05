@@ -40,6 +40,7 @@ export interface ConversationState {
   missingRequiredFields: string[];
   suggestedOptionalFields: string[];
   conversationContext: string[];
+  lastActivity: Date;
 }
 
 export class EnhancedConversationalEngine {
@@ -49,6 +50,8 @@ export class EnhancedConversationalEngine {
   private llm: MultiProviderLLM;
   private tools: MCPTool[] = [];
   private conversationStates: Map<string, ConversationState> = new Map();
+  private readonly CONVERSATION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  private readonly MIN_CONFIDENCE_THRESHOLD = 0.6; // Increased from 0.3
 
   constructor(modelName: string = 'gpt-4') {
     this.conversationManager = new ConversationManager();
@@ -56,6 +59,18 @@ export class EnhancedConversationalEngine {
     this.executor = new CurlExecutor();
     const config = getLLMConfig(modelName);
     this.llm = new MultiProviderLLM(config);
+    
+    // Start cleanup interval
+    setInterval(() => this.cleanupStaleConversations(), 5 * 60 * 1000); // Every 5 minutes
+  }
+
+  private cleanupStaleConversations(): void {
+    const now = Date.now();
+    for (const [id, state] of this.conversationStates.entries()) {
+      if (now - state.lastActivity.getTime() > this.CONVERSATION_TIMEOUT) {
+        this.conversationStates.delete(id);
+      }
+    }
   }
 
   updateTools(tools: MCPTool[]): void {
@@ -70,7 +85,8 @@ export class EnhancedConversationalEngine {
       collectedParameters: {},
       missingRequiredFields: [],
       suggestedOptionalFields: [],
-      conversationContext: []
+      conversationContext: [],
+      lastActivity: new Date()
     });
 
     this.conversationManager.addMessage(
@@ -90,6 +106,9 @@ export class EnhancedConversationalEngine {
       throw new Error(`Conversation ${conversationId} not found`);
     }
 
+    // Update last activity
+    state.lastActivity = new Date();
+
     // If we're in the middle of collecting parameters, handle that first
     if (state.currentTool && (state.missingRequiredFields.length > 0 || state.suggestedOptionalFields.length > 0)) {
       return await this.handleParameterCollection(conversationId, userInput, state);
@@ -100,12 +119,12 @@ export class EnhancedConversationalEngine {
   }
 
   private async processNewRequest(conversationId: string, userInput: string, state: ConversationState): Promise<EnhancedChatResponse> {
-    // Find the best matching tool using a simpler approach
+    // Find the best matching tool with improved confidence threshold
     const toolMatch = await this.findBestToolMatch(userInput);
     
-    if (!toolMatch) {
+    if (!toolMatch || toolMatch.confidence < this.MIN_CONFIDENCE_THRESHOLD) {
       const response: EnhancedChatResponse = {
-        message: "I couldn't find a suitable API for your request. Could you please rephrase or provide more details about what you'd like to do?",
+        message: `I couldn't find a suitable API for your request with sufficient confidence. Could you please be more specific about what you'd like to do?\n\nAvailable operations include:\n${this.getAvailableOperationsSummary()}`,
         needsClarification: false,
         conversationId
       };
@@ -119,10 +138,10 @@ export class EnhancedConversationalEngine {
     // Analyze what information we have and what's missing
     const analysis = await this.analyzeToolRequirements(tool, parameters, userInput);
     
-    if (analysis.missingRequiredFields.length > 0) {
-      // We need to collect required fields
+    // NEVER auto-execute with missing required fields or placeholder values
+    if (analysis.missingRequiredFields.length > 0 || this.hasPlaceholderValues(parameters)) {
       state.currentTool = tool;
-      state.collectedParameters = { ...parameters };
+      state.collectedParameters = this.sanitizeParameters(parameters);
       state.missingRequiredFields = analysis.missingRequiredFields;
       state.suggestedOptionalFields = analysis.suggestedOptionalFields;
       
@@ -143,8 +162,8 @@ export class EnhancedConversationalEngine {
       this.conversationManager.addMessage(conversationId, 'assistant', response.message);
       return response;
     }
-
-    // We have all required fields, automatically execute
+    
+    // We have all required fields with valid values, execute
     return await this.executeTool(conversationId, tool, parameters);
   }
 
@@ -153,20 +172,14 @@ export class EnhancedConversationalEngine {
       throw new Error('No current tool in state');
     }
 
-    // Check if user wants to execute
-    if (userInput.toLowerCase().includes('execute') || userInput.toLowerCase().includes('proceed')) {
-      // Execute the tool with current parameters
-      const result = await this.executeTool(conversationId, state.currentTool, state.collectedParameters);
-      return {
-        message: result.message,
-        needsClarification: false,
-        toolMatch: {
-          tool: state.currentTool,
-          confidence: 1.0,
-          parameters: state.collectedParameters
-        },
-        conversationId
-      };
+    // Check for cancellation intent
+    if (this.isCancellationIntent(userInput)) {
+      return this.handleCancellation(conversationId, state);
+    }
+
+    // Check if user wants to execute with current parameters
+    if (this.isExecutionIntent(userInput) && state.missingRequiredFields.length === 0) {
+      return await this.executeTool(conversationId, state.currentTool, state.collectedParameters);
     }
 
     // Extract new parameters from user input
@@ -178,36 +191,61 @@ export class EnhancedConversationalEngine {
     // Update state
     state.collectedParameters = updatedParameters;
     
-    // Check if we have all required fields
+    // Re-analyze requirements
     const analysis = await this.analyzeToolRequirements(state.currentTool, updatedParameters, userInput);
     
-    if (analysis.missingRequiredFields.length === 0) {
-      // Auto-execute when all required fields are present
-      const result = await this.executeTool(conversationId, state.currentTool, updatedParameters);
-      return {
-        message: result.message,
-        needsClarification: false,
-        toolMatch: {
-          tool: state.currentTool,
-          confidence: 1.0,
-          parameters: updatedParameters
-        },
-        conversationId
-      };
+    if (analysis.missingRequiredFields.length === 0 && !this.hasPlaceholderValues(updatedParameters)) {
+      // All required fields collected with valid values, execute
+      return await this.executeTool(conversationId, state.currentTool, updatedParameters);
     }
     
-    // Still need more information
-    const clarification = this.createClarificationRequest(state.currentTool, analysis, updatedParameters);
-    return {
-      message: clarification.message,
+    // Still missing required fields or have placeholder values
+    state.missingRequiredFields = analysis.missingRequiredFields;
+    state.suggestedOptionalFields = analysis.suggestedOptionalFields;
+    
+    const clarificationRequest = this.createClarificationRequest(state.currentTool, analysis, updatedParameters);
+    
+    const response: EnhancedChatResponse = {
+      message: clarificationRequest.message,
       needsClarification: true,
+      clarificationRequest,
       toolMatch: {
         tool: state.currentTool,
-        confidence: 0.8,
+        confidence: 1.0,
         parameters: updatedParameters
       },
       conversationId
     };
+
+    this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+    return response;
+  }
+
+  private isCancellationIntent(userInput: string): boolean {
+    const cancellationPhrases = ['cancel', 'stop', 'quit', 'exit', 'nevermind', 'abort'];
+    return cancellationPhrases.some(phrase => userInput.toLowerCase().includes(phrase));
+  }
+
+  private handleCancellation(conversationId: string, state: ConversationState): EnhancedChatResponse {
+    // Reset state
+    state.currentTool = undefined;
+    state.collectedParameters = {};
+    state.missingRequiredFields = [];
+    state.suggestedOptionalFields = [];
+
+    const response: EnhancedChatResponse = {
+      message: "Operation cancelled. How else can I help you?",
+      needsClarification: false,
+      conversationId
+    };
+
+    this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+    return response;
+  }
+
+  private isExecutionIntent(userInput: string): boolean {
+    const executionPhrases = ['execute', 'proceed', 'run', 'go ahead', 'do it', 'submit'];
+    return executionPhrases.some(phrase => userInput.toLowerCase().includes(phrase));
   }
 
   private async analyzeToolRequirements(tool: MCPTool, initialParameters: Record<string, any>, userInput: string): Promise<{
@@ -217,8 +255,26 @@ export class EnhancedConversationalEngine {
     const requiredFields = this.getRequiredFields(tool);
     const optionalFields = this.getOptionalFields(tool);
     
-    const providedFields = Object.keys(initialParameters);
+    // Filter out empty, null, or undefined parameters
+    const providedFields = Object.keys(initialParameters).filter(field => {
+      const value = initialParameters[field];
+      return value !== undefined && value !== null && value !== '';
+    });
+    
     const missingRequired = requiredFields.filter(field => !providedFields.includes(field));
+    
+    // For GET requests, check if path parameters are required
+    if (tool.endpoint.method === 'GET') {
+      const pathParams = tool.endpoint.path.match(/\{([^}]+)\}/g) || [];
+      const pathParamNames = pathParams.map(param => param.slice(1, -1));
+      
+      // Add path parameters to required fields if they're not provided
+      pathParamNames.forEach(paramName => {
+        if (!providedFields.includes(paramName) && !missingRequired.includes(paramName)) {
+          missingRequired.push(paramName);
+        }
+      });
+    }
     
     // Suggest optional fields that might be useful
     const suggestedOptional = optionalFields.filter(field => {
@@ -245,42 +301,50 @@ export class EnhancedConversationalEngine {
   private createClarificationRequest(tool: MCPTool, analysis: any, collectedParameters: Record<string, any>): any {
     const { missingRequiredFields, suggestedOptionalFields } = analysis;
     
-    let message = `Great! I can help you with ${tool.description.toLowerCase()}.`;
+    let message = `I'll help you with **${tool.name}** - ${tool.description.toLowerCase()}.`;
     
     // Show what we already have
-    if (Object.keys(collectedParameters).length > 0) {
-      message += `\n\n✅ **Information I already have:**\n`;
-      Object.entries(collectedParameters).forEach(([key, value]) => {
+    const validParameters = Object.entries(collectedParameters).filter(([_, value]) => !this.isPlaceholderValue(value));
+    if (validParameters.length > 0) {
+      message += `\n\n✅ **Information I have:**\n`;
+      validParameters.forEach(([key, value]) => {
         message += `- **${key}**: ${Array.isArray(value) ? value.join(', ') : value}\n`;
       });
     }
     
-    // Show all missing fields (required + optional) at once
-    const allMissingFields = [...missingRequiredFields, ...suggestedOptionalFields];
-    
-    if (allMissingFields.length > 0) {
-      message += `\n\n❓ **Please provide the following information:**\n`;
-      allMissingFields.forEach((field, index) => {
-        const isRequired = missingRequiredFields.includes(field);
-        const fieldSchema = tool.inputSchema?.properties?.[field];
-        const fieldType = (fieldSchema && typeof fieldSchema === 'object' && !Array.isArray(fieldSchema)) ? fieldSchema.type || 'string' : 'string';
-        const fieldDescription = (fieldSchema && typeof fieldSchema === 'object' && !Array.isArray(fieldSchema)) ? fieldSchema.description || field : field;
-        const enumValues = (fieldSchema && typeof fieldSchema === 'object' && !Array.isArray(fieldSchema)) ? fieldSchema.enum : undefined;
+    // Show required fields first
+    if (missingRequiredFields.length > 0) {
+      message += `\n\n🔴 **Required information needed:**\n`;
+      missingRequiredFields.forEach((field, index) => {
+        const fieldSchema = tool.inputSchema?.properties?.[field] as any;
+        const fieldDescription = fieldSchema?.description || field;
+        const enumValues = fieldSchema?.enum;
+        const examples = fieldSchema?.examples;
         
-        // Color coding: blue for required, normal for optional
-        const colorPrefix = isRequired ? '\x1b[34m' : ''; // Blue color for required
-        const colorSuffix = isRequired ? '\x1b[0m' : ''; // Reset color
-        
-        message += `${colorPrefix}${index + 1}. **${field}**${isRequired ? ' (required)' : ' (optional)'}: ${fieldDescription}`;
+        message += `${index + 1}. **${field}**: ${fieldDescription}`;
         
         if (enumValues && enumValues.length > 0) {
-          message += ` (Choose from: ${enumValues.join(', ')})`;
+          message += ` (Options: ${enumValues.join(', ')})`;
+        } else if (examples && examples.length > 0) {
+          message += ` (Example: ${examples[0]})`;
         }
         
-        message += `${colorSuffix}\n`;
+        message += `\n`;
+      });
+    }
+    
+    // Show optional fields if no required fields are missing
+    if (missingRequiredFields.length === 0 && suggestedOptionalFields.length > 0) {
+      message += `\n\n💡 **Optional fields you might want to add:**\n`;
+      suggestedOptionalFields.forEach((field, index) => {
+        const fieldSchema = tool.inputSchema?.properties?.[field] as any;
+        const description = fieldSchema?.description || field;
+        message += `${index + 1}. **${field}**: ${description}\n`;
       });
       
-      message += `\n💡 **Tip**: You can provide multiple fields at once, like "name: leo, category: dogs, status: available"`;
+      message += `\nSay "execute" to proceed with current information, or provide additional fields.`;
+    } else {
+      message += `\n💡 **Tip**: You can provide multiple fields at once, like "name: Fluffy, status: available"`;
     }
     
     return {
@@ -423,6 +487,28 @@ Extracted parameters:`;
     return validated;
   }
 
+  private sanitizeParameters(parameters: Record<string, any>): Record<string, any> {
+    const sanitized: Record<string, any> = {};
+    const placeholderValues = ['Unknown', 'unknown', '', 'N/A', 'n/a', 'TBD', 'tbd'];
+    
+    for (const [key, value] of Object.entries(parameters)) {
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'string' && !placeholderValues.includes(value)) {
+          sanitized[key] = value;
+        } else if (Array.isArray(value)) {
+          const filteredArray = value.filter(v => !placeholderValues.includes(v));
+          if (filteredArray.length > 0) {
+            sanitized[key] = filteredArray;
+          }
+        } else if (typeof value !== 'string') {
+          sanitized[key] = value;
+        }
+      }
+    }
+    
+    return sanitized;
+  }
+
   private validateFieldValue(value: any, fieldSchema: any, fieldName: string): any {
     if (value === undefined || value === null || value === '') {
       return undefined;
@@ -465,10 +551,7 @@ Extracted parameters:`;
       return { id: 1, name: value };
     }
 
-    // Handle photoUrls - ensure it's always an array
-    if (fieldName === 'photoUrls' && !Array.isArray(value)) {
-      return [value];
-    }
+    
 
     return value;
   }
@@ -596,82 +679,64 @@ Extracted parameters:`;
   }
 
   private async findBestToolMatch(userInput: string): Promise<{ tool: MCPTool; parameters: Record<string, any>; confidence: number } | null> {
-    const lowerInput = userInput.toLowerCase();
-    
-    // Dynamic keyword-based matching using tool descriptions and names
-    for (const tool of this.tools) {
-      const toolName = tool.name.toLowerCase();
-      const toolDescription = tool.description.toLowerCase();
-      
-      // More precise matching logic
-      let matchFound = false;
-      
-      // Check exact tool name match
-      if (lowerInput.includes(toolName)) {
-        matchFound = true;
-      }
-      
-      // Check if description words match user input
-      const descriptionWords = toolDescription.split(' ').filter(word => word.length > 2);
-      if (descriptionWords.some(word => lowerInput.includes(word))) {
-        matchFound = true;
-      }
-      
-      // Check for specific action patterns
-      if (lowerInput.includes('get') && toolName.includes('get') && !toolName.includes('add')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('create') && (toolName.includes('add') || toolName.includes('create'))) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('update') && toolName.includes('update')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('delete') && toolName.includes('delete')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('find') && toolName.includes('find')) {
-        matchFound = true;
-      }
-      
-      // Check for specific tool types
-      if (lowerInput.includes('range') && toolName.includes('range')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('json') && toolName.includes('json')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('xml') && toolName.includes('xml')) {
-        matchFound = true;
-      }
-      if (lowerInput.includes('pet') && toolName.includes('pet')) {
-        matchFound = true;
-      }
-      
-      if (matchFound) {
-        // Extract parameters from user input
-        const parameters = await this.extractParametersFromInput(userInput, tool);
-        
-        return {
-          tool,
-          parameters,
-          confidence: 0.8
-        };
-      }
-    }
-    
-    // If no direct match, try the original tool matcher
+    // Use semantic search with improved confidence threshold
     try {
       const result = await this.toolMatcher.findBestMatch(userInput, this.tools);
-      if (result) {
+      if (result && result.confidence > this.MIN_CONFIDENCE_THRESHOLD) { // Increased from 0.3
         return {
           tool: result.tool,
           parameters: result.parameters || {},
-          confidence: result.confidence || 0.5
+          confidence: result.confidence
         };
       }
     } catch (error) {
-      console.error('Error with original tool matcher:', error);
+      console.error('Error with semantic tool matcher:', error);
+    }
+    
+    // Fallback to improved keyword matching
+    return await this.keywordBasedMatching(userInput);
+  }
+
+  private async keywordBasedMatching(userInput: string): Promise<{ tool: MCPTool; parameters: Record<string, any>; confidence: number } | null> {
+    const lowerInput = userInput.toLowerCase();
+    const tokens = lowerInput.split(/\s+/);
+    
+    let bestMatch: { tool: MCPTool; confidence: number } | null = null;
+    
+    for (const tool of this.tools) {
+      const toolName = tool.name.toLowerCase();
+      const toolDescription = tool.description.toLowerCase();
+      const method = tool.endpoint.method.toLowerCase();
+      
+      let score = 0;
+      
+      // Method matching
+      if (tokens.includes(method) || (method === 'post' && (tokens.includes('create') || tokens.includes('add') || tokens.includes('save')))) {
+        score += 0.3;
+      }
+      
+      // Tool name matching
+      if (tokens.some(token => toolName.includes(token) || token.includes(toolName.split('_')[0]))) {
+        score += 0.4;
+      }
+      
+      // Description matching
+      const descWords = toolDescription.split(/\s+/);
+      const matchedWords = tokens.filter(token => descWords.some(word => word.includes(token) || token.includes(word)));
+      score += (matchedWords.length / tokens.length) * 0.3;
+      
+      if (score > (bestMatch?.confidence || 0) && score >= this.MIN_CONFIDENCE_THRESHOLD) {
+        bestMatch = { tool, confidence: score };
+      }
+    }
+    
+    if (bestMatch) {
+      const parameters = await this.extractParametersFromInput(userInput, bestMatch.tool);
+      return {
+        tool: bestMatch.tool,
+        parameters: this.sanitizeParameters(parameters),
+        confidence: bestMatch.confidence
+      };
     }
     
     return null;
@@ -682,19 +747,44 @@ Extracted parameters:`;
       const curlCommand = this.generateCurlCommand(tool, parameters);
       const executionResult = await this.executor.executeCurl(curlCommand);
       
-      let resultMessage = `✅ **Successfully executed ${tool.name}!**\n\n`;
+      // Check if the response indicates an error
+      const isError = this.isApiError(executionResult);
       
-      // Show the curl command
-      resultMessage += `**cURL Command:**\n\`\`\`bash\n${curlCommand}\n\`\`\`\n\n`;
+      let resultMessage: string;
       
-      try {
-        const jsonResult = JSON.parse(executionResult);
-        resultMessage += `**Response:**\n\`\`\`json\n${JSON.stringify(jsonResult, null, 2)}\n\`\`\``;
-      } catch {
-        resultMessage += `**Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
+      if (isError) {
+        resultMessage = `❌ **API Error in ${tool.name}:**\n\n`;
+        resultMessage += `**cURL Command:**\n\`\`\`bash\n${curlCommand}\n\`\`\`\n\n`;
+        
+        try {
+          const errorResult = JSON.parse(executionResult);
+          resultMessage += `**Error Response:**\n\`\`\`json\n${JSON.stringify(errorResult, null, 2)}\n\`\`\`\n\n`;
+          resultMessage += `**Possible issues:**\n- Check if all required fields are provided\n- Verify field values are in the correct format\n- Ensure the API endpoint is accessible`;
+        } catch {
+          resultMessage += `**Error Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
+        }
+      } else {
+        resultMessage = `✅ **Successfully executed ${tool.name}!**\n\n`;
+        resultMessage += `**cURL Command:**\n\`\`\`bash\n${curlCommand}\n\`\`\`\n\n`;
+        
+        try {
+          const jsonResult = JSON.parse(executionResult);
+          resultMessage += `**Response:**\n\`\`\`json\n${JSON.stringify(jsonResult, null, 2)}\n\`\`\``;
+        } catch {
+          resultMessage += `**Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
+        }
+        
+        resultMessage += `\n\nIs there anything else you'd like to do? 🎯`;
       }
-
-      resultMessage += `\n\nIs there anything else you'd like to do? 🎯`;
+      
+      // Reset conversation state after execution
+      const state = this.conversationStates.get(conversationId);
+      if (state) {
+        state.currentTool = undefined;
+        state.collectedParameters = {};
+        state.missingRequiredFields = [];
+        state.suggestedOptionalFields = [];
+      }
 
       const response: EnhancedChatResponse = {
         message: resultMessage,
@@ -709,10 +799,18 @@ Extracted parameters:`;
 
       this.conversationManager.addMessage(conversationId, 'assistant', response.message);
       return response;
-
     } catch (error: any) {
-      const errorMessage = `❌ **Error executing API call:**\n\n${error.message}\n\nWould you like to try again or do something else?`;
+      const errorMessage = `❌ **Execution Error in ${tool.name}:** ${error.message}\n\nPlease check your parameters and try again.`;
       
+      // Reset conversation state after error
+      const state = this.conversationStates.get(conversationId);
+      if (state) {
+        state.currentTool = undefined;
+        state.collectedParameters = {};
+        state.missingRequiredFields = [];
+        state.suggestedOptionalFields = [];
+      }
+
       const response: EnhancedChatResponse = {
         message: errorMessage,
         needsClarification: false,
@@ -721,6 +819,18 @@ Extracted parameters:`;
 
       this.conversationManager.addMessage(conversationId, 'assistant', response.message);
       return response;
+    }
+  }
+
+  private isApiError(response: string): boolean {
+    try {
+      const parsed = JSON.parse(response);
+      // Check for common error indicators
+      return !!(parsed.error || parsed.code >= 400 || parsed.message?.includes('error'));
+    } catch {
+      // If it's not JSON, check for common error text
+      const lowerResponse = response.toLowerCase();
+      return lowerResponse.includes('error') || lowerResponse.includes('exception') || lowerResponse.includes('failed');
     }
   }
 
@@ -809,5 +919,35 @@ Extracted parameters:`;
 
   async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
     return await this.conversationManager.listConversations();
+  }
+
+  private isPlaceholderValue(value: any): boolean {
+    if (typeof value === 'string') {
+      const placeholders = ['Unknown', 'unknown', 'N/A', 'n/a', 'TBD', 'tbd', 'placeholder'];
+      return placeholders.includes(value);
+    }
+    if (Array.isArray(value)) {
+      return value.every(v => this.isPlaceholderValue(v));
+    }
+    return false;
+  }
+
+  private hasPlaceholderValues(parameters: Record<string, any>): boolean {
+    const placeholderValues = ['Unknown', 'unknown', '', 'N/A', 'n/a', 'TBD', 'tbd'];
+    
+    for (const [key, value] of Object.entries(parameters)) {
+      if (typeof value === 'string' && placeholderValues.includes(value)) {
+        return true;
+      }
+      if (Array.isArray(value) && value.some(v => typeof v === 'string' && placeholderValues.includes(v))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private getAvailableOperationsSummary(): string {
+    const operations = this.tools.slice(0, 5).map(tool => `• ${tool.name}: ${tool.description}`).join('\n');
+    return operations + (this.tools.length > 5 ? `\n... and ${this.tools.length - 5} more` : '');
   }
 } 
