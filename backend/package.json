@@ -21,6 +21,9 @@
     "start:autogen": "node --import tsx dist/server-autogen.js",
     "dev:autogen": "nodemon --watch 'src/**/*.ts' --exec 'npm run build && node --import tsx dist/server-autogen.js'",
     "chat": "node --import tsx src/cli/chat-interface.ts",
+    "chat:enhanced": "node --import tsx src/cli/enhanced-chat-interface.ts",
+    "demo:enhanced": "node --import tsx src/utils/enhanced-conversation-demo.ts",
+    "test:enhanced": "node test-enhanced-chat.js",
     "chat-demo": "node --import tsx src/utils/example-conversation.ts",
     "mcp-test": "node --import tsx src/cli/mcp-testing-cli.ts"
   },
@@ -45,6 +48,7 @@
     "inquirer": "^9.3.7",
     "node-fetch": "^2.7.0",
     "openai": "^4.104.0",
+    "@anthropic-ai/sdk": "^0.18.0",
     "openapi-types": "^12.1.3",
     "uuid": "^9.0.1",
     "zod": "^3.25.76"

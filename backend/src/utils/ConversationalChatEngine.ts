@@ -1,5 +1,6 @@
+// Enhanced ConversationalChatEngine with better parameter handling
 import { ConversationManager } from './ConversationManager.js';
-import { MissingInfoDetector } from './MissingInfoDetector.js';
+import { GenericMissingInfoDetector as EnhancedMissingInfoDetector } from './MissingInfoDetector.js';
 import { APIToolMatcher } from '../tools/api-tool-matcher.js';
 import { CurlExecutor } from '../tools/executor.js';
 import { MCPTool } from '../types.js';
@@ -19,9 +20,9 @@ export interface ChatResponse {
   executionResult?: any;
 }
 
-export class ConversationalChatEngine {
+export class EnhancedConversationalChatEngine {
   private conversationManager: ConversationManager;
-  private missingInfoDetector: MissingInfoDetector;
+  private missingInfoDetector: EnhancedMissingInfoDetector;
   private toolMatcher: APIToolMatcher;
   private executor: CurlExecutor;
   private openai: OpenAI;
@@ -29,7 +30,7 @@ export class ConversationalChatEngine {
 
   constructor(tools: MCPTool[] = []) {
     this.conversationManager = new ConversationManager();
-    this.missingInfoDetector = new MissingInfoDetector();
+    this.missingInfoDetector = new EnhancedMissingInfoDetector();
     this.toolMatcher = new APIToolMatcher();
     this.executor = new CurlExecutor();
     this.openai = new OpenAI({
@@ -38,27 +39,19 @@ export class ConversationalChatEngine {
     this.tools = tools;
   }
 
-  /**
-   * Start a new conversation
-   */
   startConversation(): string {
     const context = this.conversationManager.createConversation();
     
-    // Add welcome message
     this.conversationManager.addMessage(
       context.id,
       'assistant',
-      'Hello! I\'m here to help you interact with various APIs. What would you like to do today?'
+      'Hello! I\'m here to help you interact with various APIs. Just tell me what you want to do in natural language! 🚀'
     );
 
     return context.id;
   }
 
-  /**
-   * Process user input and return appropriate response
-   */
   async processMessage(conversationId: string, userInput: string): Promise<ChatResponse> {
-    // Add user message to conversation
     this.conversationManager.addMessage(conversationId, 'user', userInput);
     
     const state = this.conversationManager.getConversationState(conversationId);
@@ -66,18 +59,13 @@ export class ConversationalChatEngine {
       throw new Error(`Conversation ${conversationId} not found`);
     }
 
-    // Check if we're waiting for clarification
     if (state.isAwaitingInput && state.clarificationRequest) {
       return await this.handleClarificationResponse(conversationId, userInput, state);
     }
 
-    // Process new request
     return await this.processNewRequest(conversationId, userInput);
   }
 
-  /**
-   * Handle response to clarification questions
-   */
   private async handleClarificationResponse(
     conversationId: string,
     userInput: string,
@@ -121,8 +109,10 @@ export class ConversationalChatEngine {
       }
     });
 
-    // Update conversation state
-    const updatedExtractedInfo = { ...state.extractedInfo, ...newInfo };
+    // Merge with existing provided info from context
+    const contextProvidedInfo = clarificationRequest.context?.providedInfo || {};
+    const updatedExtractedInfo = { ...state.extractedInfo, ...contextProvidedInfo, ...newInfo };
+    
     this.conversationManager.updateConversationState(conversationId, {
       extractedInfo: updatedExtractedInfo,
       isAwaitingInput: false,
@@ -143,7 +133,8 @@ export class ConversationalChatEngine {
       const newClarificationRequest = await this.missingInfoDetector.createClarificationRequest(
         missingInfoAnalysis,
         tool,
-        clarificationRequest.context?.originalInput || ''
+        clarificationRequest.context?.originalInput || '',
+        updatedExtractedInfo
       );
 
       this.conversationManager.updateConversationState(conversationId, {
@@ -165,12 +156,9 @@ export class ConversationalChatEngine {
     return await this.executeToolWithInfo(conversationId, tool, updatedExtractedInfo);
   }
 
-  /**
-   * Process a new user request
-   */
   private async processNewRequest(conversationId: string, userInput: string): Promise<ChatResponse> {
     const conversationHistory = this.conversationManager.getConversationSummary(conversationId);
-    const extractedInfo = this.conversationManager.extractInformationFromHistory(conversationId);
+    const contextExtractedInfo = this.conversationManager.extractInformationFromHistory(conversationId);
 
     // Find the best matching tool
     const toolMatch = await this.toolMatcher.findBestMatch(userInput, this.tools);
@@ -186,20 +174,27 @@ export class ConversationalChatEngine {
       return response;
     }
 
-    // Analyze for missing information
+    // Analyze for missing information with enhanced detector
     const missingInfoAnalysis = await this.missingInfoDetector.analyzeForMissingInfo(
       userInput,
       toolMatch.tool,
       conversationHistory,
-      extractedInfo
+      { ...contextExtractedInfo, ...toolMatch.parameters }
     );
 
+    // Combine all extracted info
+    const allExtractedInfo = { 
+      ...contextExtractedInfo, 
+      ...toolMatch.parameters 
+    };
+
     if (missingInfoAnalysis.hasMissingInfo) {
-      // Create clarification request
+      // Create enhanced clarification request that shows what we already have
       const clarificationRequest = await this.missingInfoDetector.createClarificationRequest(
         missingInfoAnalysis,
         toolMatch.tool,
-        userInput
+        userInput,
+        allExtractedInfo
       );
 
       // Update conversation state
@@ -208,7 +203,7 @@ export class ConversationalChatEngine {
         pendingTool: toolMatch.tool,
         pendingParameters: toolMatch.parameters,
         clarificationRequest,
-        extractedInfo
+        extractedInfo: allExtractedInfo
       });
 
       const response: ChatResponse = {
@@ -218,7 +213,7 @@ export class ConversationalChatEngine {
         toolMatch: {
           tool: toolMatch.tool,
           confidence: toolMatch.confidence,
-          parameters: toolMatch.parameters
+          parameters: allExtractedInfo
         }
       };
 
@@ -231,33 +226,23 @@ export class ConversationalChatEngine {
     }
 
     // No missing information, proceed with execution
-    return await this.executeToolWithInfo(conversationId, toolMatch.tool, { ...extractedInfo, ...toolMatch.parameters });
+    return await this.executeToolWithInfo(conversationId, toolMatch.tool, allExtractedInfo);
   }
 
-  /**
-   * Execute tool with complete information
-   */
   private async executeToolWithInfo(
     conversationId: string,
     tool: MCPTool,
     parameters: Record<string, any>
   ): Promise<ChatResponse> {
     try {
+      // Show summary before execution
+      const summaryMessage = this.generateExecutionSummary(tool, parameters);
+      
       // Generate and execute cURL command
       const curlCommand = this.toolMatcher.generateCurlCommand(tool, parameters);
-      
-      // Ask for execution confirmation
-      const confirmationMessage = `Perfect! I have all the information needed. I'll execute the ${tool.name} API call for you.\n\n` +
-        `📋 **Summary:**\n` +
-        `- API: ${tool.name}\n` +
-        `- Action: ${tool.description}\n` +
-        `- Parameters: ${JSON.stringify(parameters, null, 2)}\n\n` +
-        `Shall I proceed with the API call?`;
-
-      // For now, automatically execute. In a real implementation, you might want confirmation
       const executionResult = await this.executor.executeCurl(curlCommand);
       
-      let resultMessage = `✅ **API call executed successfully!**\n\n`;
+      let resultMessage = `${summaryMessage}\n\n✅ **API call executed successfully!**\n\n`;
       
       try {
         const jsonResult = JSON.parse(executionResult);
@@ -266,7 +251,7 @@ export class ConversationalChatEngine {
         resultMessage += `**Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
       }
 
-      resultMessage += `\n\nIs there anything else you'd like to do?`;
+      resultMessage += `\n\nAnything else you'd like to do? 🎯`;
 
       const response: ChatResponse = {
         message: resultMessage,
@@ -309,24 +294,26 @@ export class ConversationalChatEngine {
     }
   }
 
-  /**
-   * Parse user's response to clarification questions
-   */
+  private generateExecutionSummary(tool: MCPTool, parameters: Record<string, any>): string {
+    const requiredParams = Object.entries(parameters)
+      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => `- **${key}**: ${Array.isArray(value) ? value.join(', ') : value}`)
+      .join('\n');
+
+    return `🚀 **Executing ${tool.name}**\n${tool.description}\n\n**Parameters:**\n${requiredParams}`;
+  }
+
   private parseClarificationResponse(userInput: string, fields: any[]): Record<string, string> {
     const responses: Record<string, string> = {};
     
     if (fields.length === 1) {
-      // Single field response
       responses[fields[0].name] = userInput.trim();
     } else {
-      // Multiple fields - try to parse numbered responses
       const lines = userInput.split('\n').map(line => line.trim()).filter(line => line);
       
       for (let i = 0; i < Math.min(lines.length, fields.length); i++) {
         const line = lines[i];
         const fieldName = fields[i].name;
-        
-        // Remove number prefix if present (e.g., "1. value" -> "value")
         const cleanedValue = line.replace(/^\d+\.\s*/, '').trim();
         responses[fieldName] = cleanedValue;
       }
@@ -335,9 +322,6 @@ export class ConversationalChatEngine {
     return responses;
   }
 
-  /**
-   * Validate clarification responses
-   */
   private validateClarificationResponses(responses: Record<string, string>, fields: any[]): Array<{isValid: boolean; value: any; error?: string}> {
     return fields.map(field => {
       const response = responses[field.name];
@@ -353,9 +337,6 @@ export class ConversationalChatEngine {
     });
   }
 
-  /**
-   * Generate suggestions when no tool is found
-   */
   private async generateSuggestions(userInput: string): Promise<string[]> {
     const suggestions = [
       "Try describing your request differently",
@@ -363,7 +344,6 @@ export class ConversationalChatEngine {
       "Check if you have the right tools loaded"
     ];
 
-    // Get similar tools if available
     try {
       const similarTools = await this.toolMatcher.findSimilarTools(userInput, 3);
       if (similarTools.length > 0) {
@@ -379,37 +359,22 @@ export class ConversationalChatEngine {
     return suggestions;
   }
 
-  /**
-   * Get conversation history
-   */
   getConversationHistory(conversationId: string): ConversationContext | undefined {
     return this.conversationManager.getConversation(conversationId);
   }
 
-  /**
-   * Save conversation
-   */
   async saveConversation(conversationId: string): Promise<void> {
     await this.conversationManager.saveConversation(conversationId);
   }
 
-  /**
-   * Load conversation
-   */
   async loadConversation(conversationId: string): Promise<ConversationContext | null> {
     return await this.conversationManager.loadConversation(conversationId);
   }
 
-  /**
-   * List all conversations
-   */
   async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
     return await this.conversationManager.listConversations();
   }
 
-  /**
-   * Update tools
-   */
   updateTools(tools: MCPTool[]): void {
     this.tools = tools;
   }

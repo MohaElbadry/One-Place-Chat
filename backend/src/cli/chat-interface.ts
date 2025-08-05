@@ -2,7 +2,7 @@ import 'dotenv/config';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ToolLoader } from '../tools/loader.js';
-import { ConversationalChatEngine, ChatResponse } from '../utils/ConversationalChatEngine.js';
+import { EnhancedConversationalChatEngine as ConversationalChatEngine, ChatResponse } from '../utils/ConversationalChatEngine.js';
 import { MCPTool } from '../types.js';
 import { ToolMatcher } from '../utils/ToolMatcher.js';
 import { CommandExecutor } from '../utils/CommandExecutor.js';
@@ -294,8 +294,24 @@ class ChatInterface {
                 const missingParams = requiredParams.filter(p => !providedParams.includes(p));
 
                 if (missingParams.length > 0) {
-                    console.log(chalk.yellow(`\n🛠  The selected API requires additional parameters: ${missingParams.join(', ')}`));
-                    console.log(chalk.yellow(`👉 Please provide a value for "${missingParams[0]}" to continue.`));
+                    const firstMissing = missingParams[0];
+                    const fieldSchema = toolMatch.tool.inputSchema?.properties?.[firstMissing];
+                    const schema = typeof fieldSchema === 'object' && fieldSchema !== null ? fieldSchema : {};
+                    
+                    let prompt = `\n🛠  ${toolMatch.tool.name} requires ${missingParams.length} more parameter${missingParams.length > 1 ? 's' : ''}.`;
+                    prompt += `\n👉 Let's start with: ${chalk.bold(firstMissing)}`;
+                    
+                    if ('description' in schema && schema.description) {
+                        prompt += `\n   ${schema.description}`;
+                    }
+                    if ('enum' in schema && Array.isArray(schema.enum)) {
+                        prompt += `\n   Possible values: ${schema.enum.join(', ')}`;
+                    }
+                    if ('type' in schema && schema.type === 'boolean') {
+                        prompt += '\n   Please answer yes/no';
+                    }
+                    
+                    console.log(chalk.yellow(prompt));
 
                     this.pendingMatch = {
                         tool: toolMatch.tool,
@@ -323,34 +339,70 @@ class ChatInterface {
         if (!this.pendingMatch) return;
 
         const { tool, parameters, missing } = this.pendingMatch;
-
-        // Attempt to parse input as JSON first (allows user to paste an object).
-        let parsed: Record<string, any> = {};
-        try {
-            parsed = JSON.parse(userInput);
-        } catch {
-            // Not JSON – try key=value pairs
-            const kvRegex = /(\w+)\s*=\s*([^,\s]+)/g;
-            let match: RegExpExecArray | null;
-            while ((match = kvRegex.exec(userInput)) !== null) {
-                parsed[match[1]] = match[2];
+        const currentField = missing[0];
+        const fieldSchema = tool.inputSchema?.properties?.[currentField];
+        const schema = typeof fieldSchema === 'object' && fieldSchema !== null ? fieldSchema : {};
+        
+        // Extract the value from natural language input
+        let extractedValue: any = userInput.trim();
+        
+        // Try to parse specific types based on schema
+        if ('type' in schema) {
+            if (schema.type === 'integer' || schema.type === 'number') {
+                // Extract first number from input
+                const numMatch = userInput.match(/\d+/);
+                if (numMatch) {
+                    extractedValue = schema.type === 'integer' 
+                        ? parseInt(numMatch[0], 10) 
+                        : parseFloat(numMatch[0]);
+                }
+            } else if (schema.type === 'boolean') {
+                // Match yes/no, true/false
+                if (/\b(yes|true|y)\b/i.test(userInput)) {
+                    extractedValue = true;
+                } else if (/\b(no|false|n)\b/i.test(userInput)) {
+                    extractedValue = false;
+                }
             }
-
-            // If we still have nothing, treat entire input as the next param value
-            if (Object.keys(parsed).length === 0 && missing.length > 0) {
-                parsed[missing[0]] = userInput;
+        }
+        
+        // Handle enum values separately
+        if ('enum' in schema && Array.isArray(schema.enum)) {
+            const lowerInput = userInput.toLowerCase();
+            const matchedValue = schema.enum.find((e: any) => 
+                e.toString().toLowerCase() === lowerInput
+            );
+            if (matchedValue) {
+                extractedValue = matchedValue;
             }
         }
 
-        Object.assign(parameters, parsed);
+        // Store the extracted value
+        parameters[currentField] = extractedValue;
 
         // Re-evaluate missing parameters
-        const stillMissing = missing.filter((p: string) => parameters[p] === undefined);
+        const stillMissing = missing.slice(1);
 
         if (stillMissing.length > 0) {
-            // Update pendingMatch with remaining missing params and ask again.
+            // Update pendingMatch with remaining missing params
             this.pendingMatch.missing = stillMissing;
-            console.log(chalk.yellow(`\n🔄 Need value for "${stillMissing[0]}"`));
+            const nextField = stillMissing[0];
+            const nextFieldSchema = tool.inputSchema?.properties?.[nextField];
+            const schema = typeof nextFieldSchema === 'object' && nextFieldSchema !== null ? nextFieldSchema : {};
+            
+            // Show a helpful prompt for the next field
+            let prompt = `\n🔄 Please provide ${nextField}`;
+            
+            if ('description' in schema && schema.description) {
+                prompt += ` (${schema.description})`;
+            }
+            if ('enum' in schema && Array.isArray(schema.enum)) {
+                prompt += `\n   Possible values: ${schema.enum.join(', ')}`;
+            }
+            if ('type' in schema && schema.type === 'boolean') {
+                prompt += '\n   Please answer yes/no';
+            }
+            console.log(chalk.yellow(prompt));
             return;
         }
 

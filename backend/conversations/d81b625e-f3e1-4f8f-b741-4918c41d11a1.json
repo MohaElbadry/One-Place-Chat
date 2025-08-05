@@ -1,0 +1,35 @@
+{
+  "conversation": {
+    "id": "d81b625e-f3e1-4f8f-b741-4918c41d11a1",
+    "messages": [
+      {
+        "id": "4289a522-ef33-40c2-aa72-359bfd0e7c5d",
+        "role": "assistant",
+        "content": "Hello! I'm here to help you interact with APIs. Just tell me what you want to do in natural language, and I'll guide you through the process! 🚀",
+        "timestamp": "2025-08-05T19:40:37.692Z"
+      },
+      {
+        "id": "463d6c0d-722c-446c-a4c7-453e4d5f65eb",
+        "role": "user",
+        "content": "i want to get a range of numbytes ",
+        "timestamp": "2025-08-05T19:40:51.127Z"
+      },
+      {
+        "id": "71c27a01-6067-4892-b528-6a0cc8d7c699",
+        "role": "assistant",
+        "content": "Great! I can help you with add a new pet to the store..\n\n❓ **Please provide the following information:**\n\u001b[34m1. **name** (required): name\u001b[0m\n\u001b[34m2. **photoUrls** (required): photoUrls\u001b[0m\n3. **category** (optional): category\n4. **tags** (optional): tags\n5. **status** (optional): pet status in the store (Choose from: available, pending, sold)\n\n💡 **Tip**: You can provide multiple fields at once, like \"name: leo, category: dogs, status: available\"",
+        "timestamp": "2025-08-05T19:40:52.398Z"
+      }
+    ],
+    "metadata": {
+      "startTime": "2025-08-05T19:40:37.691Z",
+      "lastActivity": "2025-08-05T19:40:52.398Z",
+      "userPreferences": {},
+      "extractedInfo": {}
+    }
+  },
+  "state": {
+    "isAwaitingInput": false,
+    "extractedInfo": {}
+  }
+}

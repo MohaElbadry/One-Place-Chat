@@ -1,4 +1,4 @@
-import { ConversationalChatEngine } from './ConversationalChatEngine.js';
+import { EnhancedConversationalChatEngine } from './ConversationalChatEngine.js';
 import { MCPTool } from '../types.js';
 
 // Example tool for demonstration
@@ -57,7 +57,7 @@ const exampleWeatherTool: MCPTool = {
 };
 
 // Mock the OpenAI dependency for demo purposes
-class MockConversationalChatEngine {
+class MockEnhancedConversationalChatEngine {
   private tools: MCPTool[];
   private conversationId: string = 'demo-conversation-001';
   private step: number = 0;
@@ -160,7 +160,7 @@ async function demonstrateConversation() {
   console.log('🚀 Starting Conversational Chat Engine Demo\n');
   console.log('📝 Note: This is a mock demo that simulates the conversational flow without requiring an OpenAI API key.\n');
   
-  const chatEngine = new MockConversationalChatEngine([exampleWeatherTool]);
+  const chatEngine = new MockEnhancedConversationalChatEngine([exampleWeatherTool]);
   
   // Start a new conversation
   const conversationId = chatEngine.startConversation();

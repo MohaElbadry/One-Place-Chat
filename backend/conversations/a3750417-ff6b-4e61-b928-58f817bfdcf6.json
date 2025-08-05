@@ -1,0 +1,95 @@
+{
+  "conversation": {
+    "id": "a3750417-ff6b-4e61-b928-58f817bfdcf6",
+    "messages": [
+      {
+        "id": "2d885903-e3bb-4742-b624-be9319381016",
+        "role": "assistant",
+        "content": "Hello! I'm here to help you interact with APIs. Just tell me what you want to do in natural language, and I'll guide you through the process! 🚀",
+        "timestamp": "2025-08-05T19:46:08.103Z"
+      },
+      {
+        "id": "d1792e6f-f802-4511-beea-1ff83275d1af",
+        "role": "user",
+        "content": "i want to get a range of 54",
+        "timestamp": "2025-08-05T19:46:18.679Z"
+      },
+      {
+        "id": "ab46b165-eed5-4d27-a8e4-531de0258dcd",
+        "role": "assistant",
+        "content": "✅ **Successfully executed GET__absolute_redirect__n_!**\n\n**cURL Command:**\n```bash\ncurl -X GET \"https://httpbin.org/absolute-redirect/54\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json'\n```\n\n**Response:**\n```\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n<title>Redirecting...</title>\n<h1>Redirecting...</h1>\n<p>You should be redirected automatically to target URL: <a href=\"http://httpbin.org/absolute-redirect/53\">http://httpbin.org/absolute-redirect/53</a>.  If not click the link.\n```\n\nIs there anything else you'd like to do? 🎯",
+        "timestamp": "2025-08-05T19:46:20.926Z"
+      },
+      {
+        "id": "da740246-c381-48c1-ae94-f1e2e0f74e6f",
+        "role": "user",
+        "content": "i want to get a range of numbytes 44",
+        "timestamp": "2025-08-05T19:46:41.048Z"
+      },
+      {
+        "id": "05ed8d95-5acd-466d-a1e2-3090f670dc2d",
+        "role": "assistant",
+        "content": "Great! I can help you with absolutely 302 redirects n times..\n\n❓ **Please provide the following information:**\n\u001b[34m1. **n** (required): n\u001b[0m\n\n💡 **Tip**: You can provide multiple fields at once, like \"name: leo, category: dogs, status: available\"",
+        "timestamp": "2025-08-05T19:46:42.448Z"
+      },
+      {
+        "id": "3d7a8ba4-e842-4d86-be75-9fc06c964ede",
+        "role": "user",
+        "content": "44",
+        "timestamp": "2025-08-05T19:46:48.294Z"
+      },
+      {
+        "id": "66a2ee40-0cc5-4dc1-b61f-44df1de6a2f2",
+        "role": "assistant",
+        "content": "✅ **Successfully executed GET__absolute_redirect__n_!**\n\n**cURL Command:**\n```bash\ncurl -X GET \"https://httpbin.org/absolute-redirect/44\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json'\n```\n\n**Response:**\n```\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n<title>Redirecting...</title>\n<h1>Redirecting...</h1>\n<p>You should be redirected automatically to target URL: <a href=\"http://httpbin.org/absolute-redirect/43\">http://httpbin.org/absolute-redirect/43</a>.  If not click the link.\n```\n\nIs there anything else you'd like to do? 🎯",
+        "timestamp": "2025-08-05T19:46:49.842Z"
+      },
+      {
+        "id": "7c0d6fbe-9b16-4674-9c25-6d51419e6b8c",
+        "role": "user",
+        "content": "i want GET__range__numbytes_",
+        "timestamp": "2025-08-05T19:47:13.612Z"
+      },
+      {
+        "id": "b2a53c4a-7080-4648-b593-7bf2d830153e",
+        "role": "assistant",
+        "content": "✅ **Successfully executed GET__absolute_redirect__n_!**\n\n**cURL Command:**\n```bash\ncurl -X GET \"https://httpbin.org/absolute-redirect/44\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json'\n```\n\n**Response:**\n```\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n<title>Redirecting...</title>\n<h1>Redirecting...</h1>\n<p>You should be redirected automatically to target URL: <a href=\"http://httpbin.org/absolute-redirect/43\">http://httpbin.org/absolute-redirect/43</a>.  If not click the link.\n```\n\nIs there anything else you'd like to do? 🎯",
+        "timestamp": "2025-08-05T19:47:15.215Z"
+      },
+      {
+        "id": "1b7fa3f6-c21e-4ba7-851b-e83b74925154",
+        "role": "user",
+        "content": "GET__range__numbytes_ 99",
+        "timestamp": "2025-08-05T19:47:18.908Z"
+      },
+      {
+        "id": "fafa8db9-5d44-4cf8-8c2f-7b69e0fba051",
+        "role": "assistant",
+        "content": "✅ **Successfully executed GET__absolute_redirect__n_!**\n\n**cURL Command:**\n```bash\ncurl -X GET \"https://httpbin.org/absolute-redirect/44\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json'\n```\n\n**Response:**\n```\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n<title>Redirecting...</title>\n<h1>Redirecting...</h1>\n<p>You should be redirected automatically to target URL: <a href=\"http://httpbin.org/absolute-redirect/43\">http://httpbin.org/absolute-redirect/43</a>.  If not click the link.\n```\n\nIs there anything else you'd like to do? 🎯",
+        "timestamp": "2025-08-05T19:47:22.179Z"
+      },
+      {
+        "id": "7c21da0a-7dbb-4e3d-bea9-68ecc9e0e2a0",
+        "role": "user",
+        "content": "i want get a pet with id 4",
+        "timestamp": "2025-08-05T19:47:31.531Z"
+      },
+      {
+        "id": "8c332fc3-c013-4760-9803-89a5773346d1",
+        "role": "assistant",
+        "content": "✅ **Successfully executed GET__absolute_redirect__n_!**\n\n**cURL Command:**\n```bash\ncurl -X GET \"https://httpbin.org/absolute-redirect/44\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json'\n```\n\n**Response:**\n```\n<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n<title>Redirecting...</title>\n<h1>Redirecting...</h1>\n<p>You should be redirected automatically to target URL: <a href=\"http://httpbin.org/absolute-redirect/43\">http://httpbin.org/absolute-redirect/43</a>.  If not click the link.\n```\n\nIs there anything else you'd like to do? 🎯",
+        "timestamp": "2025-08-05T19:47:36.417Z"
+      }
+    ],
+    "metadata": {
+      "startTime": "2025-08-05T19:46:08.103Z",
+      "lastActivity": "2025-08-05T19:47:36.417Z",
+      "userPreferences": {},
+      "extractedInfo": {}
+    }
+  },
+  "state": {
+    "isAwaitingInput": false,
+    "extractedInfo": {}
+  }
+}

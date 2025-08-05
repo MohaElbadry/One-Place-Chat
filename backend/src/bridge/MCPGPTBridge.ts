@@ -82,64 +82,54 @@ export class MCPGPTBridge {
                 }
                 
                 try {
-                  // For file uploads, we need to handle multipart/form-data
-                  if (tool.name === 'uploadFile') {
-                    const { petId, additionalMetadata, file } = cleanArgs;
-                    let curlCommand = `curl -X POST \
-  'http://petstore.swagger.io/v2/pet/${petId}/uploadImage' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: multipart/form-data'`;
-                    
-                    if (additionalMetadata) {
-                      curlCommand += ` \
-  -F 'additionalMetadata=${additionalMetadata}'`;
-                    }
-                    
-                    if (file) {
-                      curlCommand += ` \
-  -F 'file=@${file}'`;
-                    } else {
-                      curlCommand += ` \
-  -F 'file=@/path/to/your/file.jpg'`;
-                    }
-                    
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                      jsonrpc: '2.0',
-                      id: message.id,
-                      result: {
-                        content: [{
-                          type: 'text',
-                          text: `Here's the cURL command to upload a file:\n\`\`\`bash\n${curlCommand}\n\`\`\``
-                        }]
-                      }
-                    }));
-                    return;
-                  }
-                  
-                  // For other tools, generate a simple cURL command
+                  // Dynamic cURL generation based on tool schema
                   const queryParams = new URLSearchParams();
                   const bodyParams: Record<string, any> = {};
                   
+                  // Process parameters based on tool schema
                   Object.entries(cleanArgs).forEach(([key, value]) => {
-                    if (typeof value === 'string' || typeof value === 'number') {
-                      queryParams.append(key, String(value));
+                    const fieldSchema = tool.inputSchema?.properties?.[key];
+                    if (fieldSchema) {
+                      // Check if this should be a query parameter or body parameter
+                      const isPathParam = tool.endpoint?.path?.includes(`{${key}}`);
+                      const isQueryParam = tool.endpoint?.method?.toUpperCase() === 'GET' || 
+                                        tool.endpoint?.method?.toUpperCase() === 'DELETE';
+                      
+                      if (isPathParam) {
+                        // Path parameters are handled in URL construction
+                        return;
+                      } else if (isQueryParam || typeof value === 'string' || typeof value === 'number') {
+                        queryParams.append(key, String(value));
+                      } else {
+                        bodyParams[key] = value;
+                      }
                     } else {
+                      // Default to body parameter if schema not found
                       bodyParams[key] = value;
                     }
                   });
                   
-                  // Get the base URL from the tool's endpoint or use a default
-                  const baseUrl = tool.endpoint?.baseUrl || 'http://petstore.swagger.io/v2';
-                  const path = tool.annotations?.path || '';
+                  // Get the base URL and path from the tool
+                  const baseUrl = tool.endpoint?.baseUrl || 'https://api.example.com';
+                  let path = tool.endpoint?.path || '';
                   
-                  let curlCommand = `curl -X POST \
-  '${baseUrl}${path}${queryParams.toString() ? '?' + queryParams.toString() : ''}' \
+                  // Replace path parameters
+                  Object.entries(cleanArgs).forEach(([key, value]) => {
+                    const pathParam = `{${key}}`;
+                    if (path.includes(pathParam)) {
+                      path = path.replace(pathParam, encodeURIComponent(String(value)));
+                    }
+                  });
+                  
+                  // Build the cURL command dynamically
+                  const method = tool.endpoint?.method?.toUpperCase() || 'GET';
+                  let curlCommand = `curl -X ${method} \\
+  '${baseUrl}${path}${queryParams.toString() ? '?' + queryParams.toString() : ''}' \\
   -H 'accept: application/json'`;
                 
                   if (Object.keys(bodyParams).length > 0) {
-                    curlCommand += ` \
-  -H 'Content-Type: application/json' \
+                    curlCommand += ` \\
+  -H 'Content-Type: application/json' \\
   -d '${JSON.stringify(bodyParams)}'`;
                   }
                   
