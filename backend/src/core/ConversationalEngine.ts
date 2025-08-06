@@ -1,8 +1,8 @@
-import { ConversationManager } from './ConversationManager.js';
+import { ConversationStore } from './ConversationStore.js';
 import { MCPTool } from '../types.js';
-import { APIToolMatcher } from '../tools/api-tool-matcher.js';
-import { CurlExecutor } from '../tools/executor.js';
-import { MultiProviderLLM } from './MultiProviderLLM.js';
+import { ToolSemanticMatcher } from '../tools/ToolSemanticMatcher.js';
+import { CurlCommandExecutor } from '../tools/CurlCommandExecutor.js';
+import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
 
 export interface EnhancedChatResponse {
@@ -42,22 +42,26 @@ export interface ConversationState {
   lastActivity: Date;
 }
 
-export class EnhancedConversationalEngine {
-  private conversationManager: ConversationManager;
-  private toolMatcher: APIToolMatcher;
-  private executor: CurlExecutor;
-  private llm: MultiProviderLLM;
+/**
+ * Main conversational engine that handles natural language API interactions.
+ * Orchestrates tool matching, parameter extraction, and API execution.
+ */
+export class ConversationalEngine {
+  private conversationStore: ConversationStore;
+  private toolMatcher: ToolSemanticMatcher;
+  private executor: CurlCommandExecutor;
+  private llm: LLMProvider;
   private tools: MCPTool[] = [];
   private conversationStates: Map<string, ConversationState> = new Map();
   private readonly CONVERSATION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
   private readonly MIN_CONFIDENCE_THRESHOLD = 0.6; // Increased from 0.3
 
   constructor(modelName: string = 'gpt-4') {
-    this.conversationManager = new ConversationManager();
-    this.toolMatcher = new APIToolMatcher();
-    this.executor = new CurlExecutor();
+    this.conversationStore = new ConversationStore();
+    this.toolMatcher = new ToolSemanticMatcher();
+    this.executor = new CurlCommandExecutor();
     const config = getLLMConfig(modelName);
-    this.llm = new MultiProviderLLM(config);
+    this.llm = new LLMProvider(config);
     
     // Start cleanup interval
     setInterval(() => this.cleanupStaleConversations(), 5 * 60 * 1000); // Every 5 minutes
@@ -72,12 +76,21 @@ export class EnhancedConversationalEngine {
     }
   }
 
+  /**
+   * Updates the available tools for the conversational engine.
+   * @param tools Array of MCP tools to be available for matching
+   */
   updateTools(tools: MCPTool[]): void {
     this.tools = tools;
   }
 
+  /**
+   * Starts a new conversation and returns the conversation ID.
+   * Initializes conversation state and sends welcome message.
+   * @returns The unique conversation ID
+   */
   startConversation(): string {
-    const context = this.conversationManager.createConversation();
+    const context = this.conversationStore.createConversation();
     const conversationId = context.id;
     
     this.conversationStates.set(conversationId, {
@@ -88,7 +101,7 @@ export class EnhancedConversationalEngine {
       lastActivity: new Date()
     });
 
-    this.conversationManager.addMessage(
+    this.conversationStore.addMessage(
       conversationId,
       'assistant',
       'Hello! I\'m here to help you interact with APIs. Just tell me what you want to do in natural language, and I\'ll guide you through the process! 🚀'
@@ -97,8 +110,15 @@ export class EnhancedConversationalEngine {
     return conversationId;
   }
 
+  /**
+   * Processes a user message and returns an appropriate response.
+   * Handles tool matching, parameter extraction, and API execution.
+   * @param conversationId The conversation ID
+   * @param userInput The user's natural language input
+   * @returns Enhanced chat response with tool match and execution results
+   */
   async processMessage(conversationId: string, userInput: string): Promise<EnhancedChatResponse> {
-    this.conversationManager.addMessage(conversationId, 'user', userInput);
+    this.conversationStore.addMessage(conversationId, 'user', userInput);
     
     const state = this.conversationStates.get(conversationId);
     if (!state) {
@@ -128,11 +148,14 @@ export class EnhancedConversationalEngine {
         conversationId
       };
 
-      this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
       return response;
     }
 
-    const { tool, parameters, confidence } = toolMatch;
+    const { tool, confidence } = toolMatch;
+    
+    // Extract parameters from the user input
+    const parameters = await this.extractParametersFromInput(userInput, tool);
     
     // Analyze what information we have and what's missing
     const analysis = await this.analyzeToolRequirements(tool, parameters, userInput);
@@ -158,7 +181,7 @@ export class EnhancedConversationalEngine {
         conversationId
       };
 
-      this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
       return response;
     }
     
@@ -216,7 +239,7 @@ export class EnhancedConversationalEngine {
       conversationId
     };
 
-    this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+    this.conversationStore.addMessage(conversationId, 'assistant', response.message);
     return response;
   }
 
@@ -238,7 +261,7 @@ export class EnhancedConversationalEngine {
       conversationId
     };
 
-    this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+    this.conversationStore.addMessage(conversationId, 'assistant', response.message);
     return response;
   }
 
@@ -394,38 +417,65 @@ export class EnhancedConversationalEngine {
     };
   }
 
+  /**
+   * Extracts parameters from user input using improved pattern matching and parameter mapping.
+   * Prioritizes direct parameter extraction over LLM-based extraction for better reliability.
+   */
+    /**
+   * Extracts parameters from user input using AI-based intelligent extraction.
+   * Analyzes the input against the tool schema to find relevant parameters.
+   */
   private async extractParametersFromInput(userInput: string, tool: MCPTool): Promise<Record<string, any>> {
     try {
       const schemaDescription = this.buildSchemaDescription(tool);
-      
+      const requiredFields = this.getRequiredFields(tool);
+      const optionalFields = this.getOptionalFields(tool);
+
       const prompt = `
 Extract parameters from the user input for the "${tool.name}" API.
 
 API Description: ${tool.description}
+
 Available Parameters:
 ${schemaDescription}
+
+Required Fields: ${requiredFields.join(', ')}
+Optional Fields: ${optionalFields.join(', ')}
 
 User Input: "${userInput}"
 
 Instructions:
-1. Extract ALL parameters that are explicitly mentioned or clearly implied
-2. Use exact parameter names from the schema
+1. Extract ONLY parameters that are explicitly mentioned or clearly implied
+2. Use EXACT parameter names from the schema (not variations or synonyms)
 3. Convert values to appropriate types (string, number, boolean, array)
 4. For arrays, use comma-separated values or multiple entries
 5. Return ONLY a valid JSON object with the extracted parameters
 6. If no parameters are found, return an empty object {}
+7. Map common terms to exact schema field names
+8. IGNORE irrelevant words like "i", "want", "get", "by", "the", "is", "are", "with", "for", "to", "a", "an", "this", "that", "please", "help", "need", "like", "love", "hate", "good", "bad", "nice", "great", "awesome", "terrible", "okay", "fine", "well", "better", "best"
+9. Focus on actual parameter values, not descriptive words
+10. IMPORTANT: Map common field variations to exact schema names:
+    - "id" → "petId" (for pet operations)
+    - "id" → "orderId" (for order operations) 
+    - "id" → "userId" (for user operations)
+    - "name" → "petName" (if schema has petName)
+    - "email" → "userEmail" (if schema has userEmail)
 
 Examples:
-- "id 5" or "with id 5" → {"id": 5}
-- "name fluffy" or "named fluffy" → {"name": "fluffy"}  
+- "id 5" → {"petId": 5} (for pet operations)
+- "id 5" → {"orderId": 5} (for order operations)
+- "name fluffy" → {"name": "fluffy"}
 - "status available" → {"status": "available"}
 - "photo url http://..." → {"photoUrls": ["http://..."]}
 - "tags tag1,tag2" → {"tags": ["tag1", "tag2"]}
+- "quantity 10" → {"quantity": 10}
+- "price 29.99" → {"price": 29.99}
 
 Extracted parameters:`;
 
       const response = await this.llm.generateResponse(prompt);
       const content = response.content.trim();
+      
       if (content) {
         try {
           // Try to extract JSON from markdown code blocks
@@ -434,9 +484,11 @@ Extracted parameters:`;
           if (jsonMatch) {
             jsonContent = jsonMatch[1];
           }
-          
+
           const extracted = JSON.parse(jsonContent);
-          return this.validateExtractedValues(extracted, tool);
+          const validated = this.validateExtractedValues(extracted, tool);
+          
+          return validated;
         } catch (parseError) {
           console.error('Failed to parse AI response:', content);
           return {};
@@ -445,10 +497,11 @@ Extracted parameters:`;
     } catch (error) {
       console.error('Error in AI extraction:', error);
     }
-    
-    // Fallback to pattern matching
-    return this.fallbackExtraction(userInput, tool);
+
+    return {};
   }
+
+
 
   private buildSchemaDescription(tool: MCPTool): string {
     const properties = tool.inputSchema?.properties || {};
@@ -469,16 +522,39 @@ Extracted parameters:`;
     return descriptions.join('\n');
   }
 
+  /**
+   * Validates and filters extracted parameters to ensure only relevant ones are included.
+   * Filters out irrelevant words and validates against the tool schema.
+   */
   private validateExtractedValues(extracted: Record<string, any>, tool: MCPTool): Record<string, any> {
     const properties = tool.inputSchema?.properties || {};
     const validated: Record<string, any> = {};
     
+    // List of irrelevant words that should be filtered out
+    const irrelevantWords = [
+      'i', 'want', 'get', 'by', 'the', 'is', 'are', 'with', 'for', 'to', 'a', 'an',
+      'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'their',
+      'have', 'has', 'had', 'will', 'would', 'could', 'should', 'can', 'may',
+      'please', 'help', 'need', 'like', 'love', 'hate', 'good', 'bad', 'nice',
+      'great', 'awesome', 'terrible', 'okay', 'fine', 'well', 'better', 'best'
+    ];
+    
     for (const [key, value] of Object.entries(extracted)) {
+      // Skip if the key is an irrelevant word
+      if (irrelevantWords.includes(key.toLowerCase())) {
+        continue;
+      }
+      
+      // Skip if the value is an irrelevant word
+      if (typeof value === 'string' && irrelevantWords.includes(value.toLowerCase())) {
+        continue;
+      }
+      
       const fieldSchema = properties[key] as any;
       if (!fieldSchema) continue;
       
       const validatedValue = this.validateFieldValue(value, fieldSchema, key);
-      if (validatedValue !== undefined) { // Only add if it's not undefined (meaning it was processed)
+      if (validatedValue !== undefined && validatedValue !== null && validatedValue !== '') {
         validated[key] = validatedValue;
       }
     }
@@ -543,117 +619,7 @@ Extracted parameters:`;
     return value;
   }
 
-  private fallbackExtraction(userInput: string, tool: MCPTool): Record<string, any> {
-    const properties = tool.inputSchema?.properties || {};
-    const extracted: Record<string, any> = {};
-    
-    for (const [fieldName, fieldSchema] of Object.entries(properties)) {
-      const schema = fieldSchema as any;
-      const patterns = this.generatePatterns(fieldName, schema);
-      
-      for (const pattern of patterns) {
-        const match = userInput.match(pattern);
-        if (match && match[1]) {
-          const value = this.validateFieldValue(match[1].trim(), schema, fieldName);
-          if (value !== undefined) { // Only add if it's not undefined (meaning it was processed)
-            extracted[fieldName] = value;
-            break;
-          }
-        }
-      }
-    }
-    
-    return extracted;
-  }
 
-  private generatePatterns(fieldName: string, fieldSchema: any): RegExp[] {
-    const patterns: RegExp[] = [];
-    const fieldType = fieldSchema.type || 'string';
-    const variations = this.getFieldNameVariations(fieldName);
-  
-    // Common patterns
-    const commonPatterns = variations.flatMap(variation => [
-      new RegExp(`\\b${variation}\\s*[:=]?\\s*"([^"]+)"`, 'i'),
-      new RegExp(`\\b${variation}\\s*[:=]?\\s*'([^']+)'`, 'i'),
-      new RegExp(`\\b${variation}\\s*[:=]?\\s*([^\\s,]+)`, 'i'),
-      new RegExp(`\\bwith\\s+${variation}\\s+([^\\s,]+)`, 'i'),
-      new RegExp(`\\bfor\\s+${variation}\\s+([^\\s,]+)`, 'i'),
-      new RegExp(`\\b${variation}\\s+is\\s+([^\\s,]+)`, 'i'),
-    ]);
-  
-    patterns.push(...commonPatterns);
-  
-    // Type-specific patterns
-    if (fieldType === 'integer' || fieldType === 'number') {
-      patterns.push(
-        new RegExp(`\\b(\\d+)\\s+${variations.join('|')}\\b`, 'i'),
-        new RegExp(`\\b${variations.join('|')}\\s+(\\d+)\\b`, 'i')
-      );
-    }
-  
-    if (fieldType === 'string') {
-      patterns.push(
-        new RegExp(`\\b${variations.join('|')}\\s+"([^"]+)"`, 'i'),
-        new RegExp(`\\b${variations.join('|')}\\s+'([^']+)'`, 'i'),
-        new RegExp(`\\b${variations.join('|')}\\s+([a-zA-Z][a-zA-Z0-9\\s]*)`, 'i')
-      );
-    }
-  
-    if (fieldType === 'array' || fieldName.toLowerCase().includes('url')) {
-      patterns.push(
-        new RegExp(`\\b${variations.join('|')}\\s*[:=]?\\s*(https?:\\/\\/[^\\s,]+)`, 'i'),
-        new RegExp(`(https?:\\/\\/[^\\s,]+)\\s+${variations.join('|')}`, 'i')
-      );
-    }
-  
-    // Enum patterns
-    if (fieldSchema.enum && Array.isArray(fieldSchema.enum)) {
-      const enumPattern = fieldSchema.enum.join('|');
-      patterns.push(
-        new RegExp(`\\b(${enumPattern})\\s+${variations.join('|')}`, 'i'),
-        new RegExp(`\\b${variations.join('|')}\\s+(${enumPattern})`, 'i')
-      );
-    }
-  
-    return patterns;
-  }
-
-  private getFieldNameVariations(fieldName: string): string[] {
-    const variations = new Set<string>();
-    variations.add(fieldName);
-    
-    // Handle camelCase to space-separated
-    const spaced = fieldName.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-    variations.add(spaced);
-    
-    // Handle snake_case to space-separated
-    const snakeToSpace = fieldName.replace(/_/g, ' ').toLowerCase();
-    if (snakeToSpace !== fieldName) {
-      variations.add(snakeToSpace);
-    }
-    
-    // Handle common synonyms
-    const synonyms: Record<string, string[]> = {
-      id: ['identifier', 'number', 'num', '#'],
-      name: ['title', 'label', 'fullname', 'full name'],
-      email: ['e-mail', 'mail', 'email address'],
-      phone: ['telephone', 'mobile', 'cell', 'phone number'],
-      url: ['link', 'website', 'web', 'uri', 'web address'],
-      address: ['location', 'street', 'postal address'],
-      date: ['time', 'datetime', 'timestamp'],
-      description: ['details', 'info', 'information', 'summary'],
-      price: ['cost', 'amount', 'value', 'fee'],
-      quantity: ['amount', 'number', 'count', 'total'],
-    };
-  
-    for (const [key, values] of Object.entries(synonyms)) {
-      if (fieldName.toLowerCase().includes(key)) {
-        values.forEach(v => variations.add(v));
-      }
-    }
-  
-    return Array.from(variations).filter(Boolean);
-  }
 
   private getRequiredFields(tool: MCPTool): string[] {
     return tool.inputSchema?.required || [];
@@ -723,7 +689,7 @@ Extracted parameters:`;
         conversationId
       };
 
-      this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
       return response;
     } catch (error: any) {
       const errorMessage = `❌ **Execution Error in ${tool.name}:** ${error.message}\n\nPlease check your parameters and try again.`;
@@ -743,7 +709,7 @@ Extracted parameters:`;
         conversationId
       };
 
-      this.conversationManager.addMessage(conversationId, 'assistant', response.message);
+      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
       return response;
     }
   }
@@ -847,14 +813,14 @@ Extracted parameters:`;
   }
 
   async saveConversation(conversationId: string): Promise<void> {
-    await this.conversationManager.saveConversation(conversationId);
+    await this.conversationStore.saveConversation(conversationId);
   }
 
   async loadConversation(conversationId: string): Promise<any> {
-    return await this.conversationManager.loadConversation(conversationId);
+    return await this.conversationStore.loadConversation(conversationId);
   }
 
   async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
-    return await this.conversationManager.listConversations();
+    return await this.conversationStore.listConversations();
   }
 }

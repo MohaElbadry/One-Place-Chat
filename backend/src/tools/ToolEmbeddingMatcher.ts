@@ -34,7 +34,11 @@ interface QueryCache {
   };
 }
 
-export class AdvancedAPIToolMatcher {
+/**
+ * Advanced tool matcher using embeddings for semantic similarity.
+ * Provides embedding-based matching with caching and performance optimization.
+ */
+export class ToolEmbeddingMatcher {
   private openai!: OpenAI;
   protected tools: ToolWithEmb[] = [];
   private llmEnabled: boolean = true;

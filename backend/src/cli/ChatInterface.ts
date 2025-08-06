@@ -2,19 +2,23 @@
 import 'dotenv/config';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { ToolLoader } from '../tools/loader.js';
-import { EnhancedConversationalEngine, EnhancedChatResponse } from '../utils/EnhancedConversationalEngine.js';
+import { ToolLoader } from '../tools/ToolLoader.js';
+import { ConversationalEngine, EnhancedChatResponse } from '../core/ConversationalEngine.js';
 import { getAvailableModels } from '../config/llm-config.js';
 import { MCPTool } from '../types.js';
 
-class EnhancedChatInterface {
+/**
+ * Interactive CLI chat interface for the conversational engine.
+ * Provides a user-friendly command-line interface for API interactions.
+ */
+class ChatInterface {
     private tools: MCPTool[] = [];
-    private chatEngine: EnhancedConversationalEngine;
+    private chatEngine: ConversationalEngine;
     private currentConversationId: string | null = null;
     private selectedModel: string = 'gpt-4';
 
     constructor() {
-        this.chatEngine = new EnhancedConversationalEngine(this.selectedModel);
+        this.chatEngine = new ConversationalEngine(this.selectedModel);
     }
 
     async initialize() {
@@ -131,7 +135,7 @@ class EnhancedChatInterface {
             ]);
             
             this.selectedModel = model;
-            this.chatEngine = new EnhancedConversationalEngine(model);
+            this.chatEngine = new ConversationalEngine(model);
             this.chatEngine.updateTools(this.tools);
         }
     }
@@ -192,5 +196,5 @@ class EnhancedChatInterface {
 }
 
 // Start the CLI
-const cli = new EnhancedChatInterface();
+const cli = new ChatInterface();
 cli.initialize().catch(console.error); 

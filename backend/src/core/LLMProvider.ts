@@ -12,7 +12,11 @@ export interface LLMResponse {
   };
 }
 
-export class MultiProviderLLM {
+/**
+ * Multi-provider LLM client supporting OpenAI, Anthropic, and Ollama.
+ * Provides unified interface for different LLM providers.
+ */
+export class LLMProvider {
   private openai?: OpenAI;
   private anthropic?: Anthropic;
   private config: LLMConfig;

@@ -4,7 +4,11 @@ import { MCPTool } from '../types.js';
 
 const execAsync = promisify(exec);
 
-export class CurlExecutor {
+/**
+ * Executes cURL commands and handles API tool execution.
+ * Provides methods for generating and executing cURL commands for API calls.
+ */
+export class CurlCommandExecutor {
   async executeCurl(curlCommand: string): Promise<string> {
     try {
       const { stdout, stderr } = await execAsync(curlCommand, { maxBuffer: 1024 * 1024 * 5 });

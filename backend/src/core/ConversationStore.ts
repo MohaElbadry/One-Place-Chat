@@ -3,7 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 
-export class ConversationManager {
+/**
+ * Manages conversation storage, persistence, and state management.
+ * Handles conversation creation, message storage, and file-based persistence.
+ */
+export class ConversationStore {
   private conversations: Map<string, ConversationContext> = new Map();
   private conversationStates: Map<string, ConversationState> = new Map();
   private storageDir: string;

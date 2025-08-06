@@ -1,4 +1,4 @@
-import { AdvancedAPIToolMatcher } from './advanced-api-tool-matcher.js';
+import { ToolEmbeddingMatcher } from './ToolEmbeddingMatcher.js';
 import { MCPTool } from '../types.js';
 
 export interface MatchResult {
@@ -21,9 +21,10 @@ export interface ScoredTool {
 }
 
 /**
- * APIToolMatcher that extends AdvancedAPIToolMatcher and adds embedding-based matching.
+ * Semantic tool matcher that uses embeddings and keyword matching to find the best API tool.
+ * Extends ToolEmbeddingMatcher for advanced matching capabilities.
  */
-export class APIToolMatcher extends AdvancedAPIToolMatcher {
+export class ToolSemanticMatcher extends ToolEmbeddingMatcher {
   private _initialized: boolean = false;
 
   constructor(apiKey?: string) {
@@ -228,6 +229,6 @@ export class APIToolMatcher extends AdvancedAPIToolMatcher {
 /**
  * HTTPBin-specific tool matcher.
  */
-export class HTTPBinToolMatcher extends APIToolMatcher {}
+export class HTTPBinToolMatcher extends ToolSemanticMatcher {}
 
-export default APIToolMatcher; 
+export default ToolSemanticMatcher; 

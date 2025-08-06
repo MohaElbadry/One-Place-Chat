@@ -8,7 +8,11 @@ import {
   ParameterLocation,
 } from "../types.js";
 
-export class OpenAPIParser {
+/**
+ * Parser for OpenAPI specifications that generates MCP tools.
+ * Converts OpenAPI operations into executable tool definitions.
+ */
+export class OpenApiToolParser {
   private spec: OpenAPIV3.Document;
   private baseUrl: string;
   private components: OpenAPIV3.ComponentsObject;

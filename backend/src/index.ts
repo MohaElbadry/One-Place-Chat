@@ -1,35 +1,36 @@
-#!/usr/bin/env node
+// ENTRY POINT: This is the main entry for the One-Place-Chat backend tool generator and CLI.
+// See /backend/index.ts for the main server entry point.
 
 import { promises as fs } from 'fs';
 import path from 'path';
 import { program } from 'commander';
 import { MCPTool } from './types.js';
-import { OpenAPIParser } from './utils/OpenAPIParser.js';
-
+import { OpenApiToolParser } from './parsers/OpenApiToolParser.js';
 
 // Configuration
 const DEFAULT_SPEC = path.join(process.cwd(), 'api-docs/Petstore/swagger.json');
 const DEFAULT_OUTPUT_DIR = path.join(process.cwd(), 'generated-tools');
 
+/**
+ * Generates tool definitions from an OpenAPI spec.
+ * @param specPath Path to the OpenAPI spec file
+ * @param outputDir Output directory for generated tools
+ * @param singleFile Whether to output a single file or individual files
+ */
 async function generateTools(specPath: string, outputDir: string, singleFile: boolean = true): Promise<void> {
   try {
     console.log('🚀 Starting tool generation...');
     console.log(`📄 Using OpenAPI spec: ${specPath}`);
-    
     // Read and parse the OpenAPI spec
     const specContent = await fs.readFile(specPath, 'utf-8');
     const spec = JSON.parse(specContent);
-    
     // Parse the spec and generate tools
-    const parser = new OpenAPIParser(spec);
+    const parser = new OpenApiToolParser(spec);
     const tools = parser.parseOperations();
-    
     if (!tools || tools.length === 0) {
       throw new Error('No tools were generated from the API specification');
     }
-    
     await fs.mkdir(outputDir, { recursive: true });
-    
     if (singleFile) {
       // Generate single file with all tools
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -46,7 +47,6 @@ async function generateTools(specPath: string, outputDir: string, singleFile: bo
       }
       console.log(`✅ Generated ${tools.length} individual tool files in: ${outputDir}`);
     }
-    
   } catch (error) {
     console.error('❌ Error generating tools:', error instanceof Error ? error.message : String(error));
     process.exit(1);
@@ -81,29 +81,6 @@ program
   .option('-t, --tools-dir <dir>', 'Directory containing tool definitions', DEFAULT_OUTPUT_DIR)
   .action(async (options) => {
     try {
-      // Import and create the server
-      const { SimpleMcpServer } = await import('./mcp/SimpleMcpServer.js');
-      const server = new SimpleMcpServer(parseInt(options.port));
-      
-      // Load tools from the directory
-      const toolFiles = await fs.readdir(options.toolsDir);
-      const tools: MCPTool[] = [];
-      
-      for (const file of toolFiles) {
-        if (file.endsWith('.json')) {
-          const content = await fs.readFile(path.join(options.toolsDir, file), 'utf-8');
-          const tool: MCPTool = JSON.parse(content); // Use the MCPTool interface
-          tools.push(tool);
-        }
-      }
-      
-      if (tools.length === 0) {
-        throw new Error(`No tools found in ${options.toolsDir}`);
-      }
-      
-      // Load tools and start the server
-      await server.loadTools(tools);
-      await server.start();
       
       console.log(`✅ MCP Server started on port ${options.port}`);
       

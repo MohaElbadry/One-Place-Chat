@@ -2,18 +2,22 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { ToolLoader } from './tools/loader.js';
-import { APIToolMatcher, HTTPBinToolMatcher } from './tools/api-tool-matcher.js';
-import { CurlExecutor } from './tools/executor.js';
+import { ToolLoader } from './tools/ToolLoader.js';
+import { ToolSemanticMatcher, HTTPBinToolMatcher } from './tools/ToolSemanticMatcher.js';
+import { CurlCommandExecutor } from './tools/CurlCommandExecutor.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Auto-generated MCP server for API tool execution.
+ * Provides tool listing and execution capabilities.
+ */
 class MCPAutoGenAPIServer {
   private server: Server;
   private toolLoader: ToolLoader;
-  private toolMatcher: APIToolMatcher;
-  private curlExecutor: CurlExecutor;
+  private toolMatcher: ToolSemanticMatcher;
+  private curlExecutor: CurlCommandExecutor;
 
   constructor() {
     this.server = new Server(
@@ -23,7 +27,7 @@ class MCPAutoGenAPIServer {
 
     this.toolLoader = new ToolLoader();
     this.toolMatcher = new HTTPBinToolMatcher();
-    this.curlExecutor = new CurlExecutor();
+    this.curlExecutor = new CurlCommandExecutor();
     this.setupHandlers();
   }
 

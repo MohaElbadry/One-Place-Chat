@@ -20,12 +20,7 @@
     "start": "node --import tsx src/index.ts",
     "start:autogen": "node --import tsx dist/server-autogen.js",
     "dev:autogen": "nodemon --watch 'src/**/*.ts' --exec 'npm run build && node --import tsx dist/server-autogen.js'",
-    "chat": "node --import tsx src/cli/chat-interface.ts",
-    "chat:enhanced": "node --import tsx src/cli/enhanced-chat-interface.ts",
-    "demo:enhanced": "node --import tsx src/utils/enhanced-conversation-demo.ts",
-    "test:enhanced": "node test-enhanced-chat.js",
-    "chat-demo": "node --import tsx src/utils/example-conversation.ts",
-    "mcp-test": "node --import tsx src/cli/mcp-testing-cli.ts"
+    "chat": "node --import tsx src/cli/ChatInterface.ts"
   },
   "keywords": [
     "chat",
