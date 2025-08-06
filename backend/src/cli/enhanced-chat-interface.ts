@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import 'dotenv/config';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -107,107 +108,89 @@ class EnhancedChatInterface {
     }
 
     private displayResponse(response: EnhancedChatResponse) {
-        if (response.message) {
-            console.log(chalk.white(response.message));
-        }
+        console.log(chalk.white(response.message));
         
-        // Handle any additional data in the response
-        if (response.executionResult) {
-            console.log(chalk.gray('--- EXECUTION RESULT ---'));
-            try {
-                const jsonData = typeof response.executionResult === 'string' ? JSON.parse(response.executionResult) : response.executionResult;
-                console.log(JSON.stringify(jsonData, null, 2));
-            } catch (e) {
-                console.log(response.executionResult);
-            }
+        if (response.toolMatch) {
+            const confidence = response.toolMatch.confidence;
+            const confidenceColor = confidence > 0.8 ? chalk.green : confidence > 0.5 ? chalk.yellow : chalk.red;
+            console.log(chalk.gray(`\nTool: ${response.toolMatch.tool.name} (confidence: ${confidenceColor(confidence.toFixed(2))})`));
         }
     }
 
     private async selectModel() {
         const availableModels = getAvailableModels();
         
-        const { model } = await inquirer.prompt([
-            {
-                type: 'list',
-                name: 'model',
-                message: 'Select an LLM model:',
-                choices: availableModels.map(model => ({
-                    name: model,
-                    value: model
-                }))
-            }
-        ]);
-
-        this.selectedModel = model;
-        this.chatEngine = new EnhancedConversationalEngine(this.selectedModel);
-        this.chatEngine.updateTools(this.tools);
-        console.log(chalk.green(`✅ Using model: ${model}`));
+        if (availableModels.length > 1) {
+            const { model } = await inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'model',
+                    message: 'Select LLM model:',
+                    choices: availableModels.map(model => ({ name: model, value: model }))
+                }
+            ]);
+            
+            this.selectedModel = model;
+            this.chatEngine = new EnhancedConversationalEngine(model);
+            this.chatEngine.updateTools(this.tools);
+        }
     }
 
     private formatDate(date: Date): string {
         const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        if (diffMins < 1) return 'just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString();
+        const diff = now.getTime() - date.getTime();
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'just now';
     }
 
     private async startChat() {
-        console.log(chalk.blue('💬 Type your request, "menu" to return to menu, or "exit" to quit\n'));
+        console.log(chalk.blue('\n💬 Chat started! Type your request or "exit" to quit.\n'));
         
         while (true) {
-            const { message } = await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'message',
-                    message: 'You:',
-                    validate: (input: string) => input.trim() !== '' || 'Please enter a message'
-                }
-            ]);
-
-            if (message.toLowerCase() === 'exit') {
-                // Save conversation before exiting
-                if (this.currentConversationId) {
-                    await this.chatEngine.saveConversation(this.currentConversationId);
-                }
-                console.log(chalk.yellow('\n👋 Goodbye!'));
-                process.exit(0);
-            }
-
-            if (message.toLowerCase() === 'menu') {
-                await this.showConversationMenu();
-                return;
-            }
-
             try {
-                // Ensure we have a valid conversation ID
+                const { message } = await inquirer.prompt([
+                    {
+                        type: 'input',
+                        name: 'message',
+                        message: chalk.cyan('You:'),
+                        validate: (input: string) => {
+                            if (!input.trim()) return 'Please enter a message';
+                            return true;
+                        }
+                    }
+                ]);
+
+                if (message.toLowerCase() === 'exit' || message.toLowerCase() === 'quit') {
+                    console.log(chalk.yellow('\n👋 Goodbye!'));
+                    process.exit(0);
+                }
+
                 if (!this.currentConversationId) {
                     this.currentConversationId = this.chatEngine.startConversation();
                 }
+
+                console.log(chalk.gray('\n🤖 Processing...'));
+                const response = await this.chatEngine.processMessage(this.currentConversationId, message);
                 
-                // Process message through enhanced conversational engine
-                const response: EnhancedChatResponse = await this.chatEngine.processMessage(this.currentConversationId, message);
-                
-                // Display assistant's response
-                console.log(chalk.blue('\n🤖 Assistant:'));
+                console.log(chalk.gray('\n🤖 Assistant:'));
                 this.displayResponse(response);
 
                 // Save conversation periodically
                 await this.chatEngine.saveConversation(this.currentConversationId);
-
+                
             } catch (error) {
-                console.error(chalk.red('\n❌ Error:'), error);
+                console.error(chalk.red('\n❌ Error:'), error instanceof Error ? error.message : String(error));
             }
         }
     }
 }
 
-// Start the enhanced chat interface
-const chat = new EnhancedChatInterface();
-chat.initialize().catch(console.error); 
+// Start the CLI
+const cli = new EnhancedChatInterface();
+cli.initialize().catch(console.error); 

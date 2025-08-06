@@ -4,7 +4,6 @@ import { APIToolMatcher } from '../tools/api-tool-matcher.js';
 import { CurlExecutor } from '../tools/executor.js';
 import { MultiProviderLLM } from './MultiProviderLLM.js';
 import { getLLMConfig } from '../config/llm-config.js';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface EnhancedChatResponse {
   message: string;
@@ -120,7 +119,7 @@ export class EnhancedConversationalEngine {
 
   private async processNewRequest(conversationId: string, userInput: string, state: ConversationState): Promise<EnhancedChatResponse> {
     // Find the best matching tool with improved confidence threshold
-    const toolMatch = await this.findBestToolMatch(userInput);
+    const toolMatch = await this.toolMatcher.findBestMatch(userInput, this.tools);
     
     if (!toolMatch || toolMatch.confidence < this.MIN_CONFIDENCE_THRESHOLD) {
       const response: EnhancedChatResponse = {
@@ -518,21 +517,9 @@ Extracted parameters:`;
     if (fieldName === 'status' && fieldSchema?.enum) {
       const statusValue = String(value).toLowerCase();
       const validStatuses = fieldSchema.enum.map((s: string) => s.toLowerCase());
+
       
-      // Handle common typos
-      const statusMappings: Record<string, string> = {
-        'pendding': 'pending',
-        'availble': 'available',
-        'availabel': 'available'
-      };
-      
-      const correctedStatus = statusMappings[statusValue] || statusValue;
-      const matchedStatus = validStatuses.find(s => s === correctedStatus);
-      
-      if (matchedStatus) {
-        // Return the original case from the enum
-        return fieldSchema.enum.find((s: string) => s.toLowerCase() === matchedStatus);
-      }
+
       return value; // Return as-is if no match found
     }
 
@@ -678,69 +665,8 @@ Extracted parameters:`;
     return Object.keys(properties).filter(field => !required.includes(field));
   }
 
-  private async findBestToolMatch(userInput: string): Promise<{ tool: MCPTool; parameters: Record<string, any>; confidence: number } | null> {
-    // Use semantic search with improved confidence threshold
-    try {
-      const result = await this.toolMatcher.findBestMatch(userInput, this.tools);
-      if (result && result.confidence > this.MIN_CONFIDENCE_THRESHOLD) { // Increased from 0.3
-        return {
-          tool: result.tool,
-          parameters: result.parameters || {},
-          confidence: result.confidence
-        };
-      }
-    } catch (error) {
-      console.error('Error with semantic tool matcher:', error);
-    }
-    
-    // Fallback to improved keyword matching
-    return await this.keywordBasedMatching(userInput);
-  }
+  
 
-  private async keywordBasedMatching(userInput: string): Promise<{ tool: MCPTool; parameters: Record<string, any>; confidence: number } | null> {
-    const lowerInput = userInput.toLowerCase();
-    const tokens = lowerInput.split(/\s+/);
-    
-    let bestMatch: { tool: MCPTool; confidence: number } | null = null;
-    
-    for (const tool of this.tools) {
-      const toolName = tool.name.toLowerCase();
-      const toolDescription = tool.description.toLowerCase();
-      const method = tool.endpoint.method.toLowerCase();
-      
-      let score = 0;
-      
-      // Method matching
-      if (tokens.includes(method) || (method === 'post' && (tokens.includes('create') || tokens.includes('add') || tokens.includes('save')))) {
-        score += 0.3;
-      }
-      
-      // Tool name matching
-      if (tokens.some(token => toolName.includes(token) || token.includes(toolName.split('_')[0]))) {
-        score += 0.4;
-      }
-      
-      // Description matching
-      const descWords = toolDescription.split(/\s+/);
-      const matchedWords = tokens.filter(token => descWords.some(word => word.includes(token) || token.includes(word)));
-      score += (matchedWords.length / tokens.length) * 0.3;
-      
-      if (score > (bestMatch?.confidence || 0) && score >= this.MIN_CONFIDENCE_THRESHOLD) {
-        bestMatch = { tool, confidence: score };
-      }
-    }
-    
-    if (bestMatch) {
-      const parameters = await this.extractParametersFromInput(userInput, bestMatch.tool);
-      return {
-        tool: bestMatch.tool,
-        parameters: this.sanitizeParameters(parameters),
-        confidence: bestMatch.confidence
-      };
-    }
-    
-    return null;
-  }
 
   private async executeTool(conversationId: string, tool: MCPTool, parameters: Record<string, any>): Promise<EnhancedChatResponse> {
     try {
@@ -841,12 +767,20 @@ Extracted parameters:`;
       'Accept': 'application/json'
     };
 
+    // Only include parameters defined in the tool's inputSchema
+    const allowedParams = tool.inputSchema?.properties ? Object.keys(tool.inputSchema.properties) : [];
+    const filteredParams: Record<string, any> = {};
+    for (const key of allowedParams) {
+      if (params[key] !== undefined) {
+        filteredParams[key] = params[key];
+      }
+    }
+
     // Build the URL with path parameters
     let url = `${baseUrl}${path}`;
     const pathParams = path.match(/\{([^}]+)\}/g) || [];
-    
     // Process path parameters
-    const processedParams = { ...params };
+    const processedParams = { ...filteredParams };
     pathParams.forEach(param => {
       const paramName = param.slice(1, -1);
       if (processedParams[paramName] !== undefined) {
@@ -859,9 +793,8 @@ Extracted parameters:`;
     let queryString = '';
     let body = '';
     const httpMethod = method.toUpperCase();
-    
     // For GET/DELETE, add remaining parameters to query string
-    if (['GET', 'DELETE'].includes(httpMethod)) {
+    if (["GET", "DELETE"].includes(httpMethod)) {
       const queryParams = new URLSearchParams();
       Object.entries(processedParams).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
@@ -888,25 +821,29 @@ Extracted parameters:`;
     }
 
     // Build the curl command
-    let curlCommand = `curl -X ${httpMethod} "${url}"`;
-
-    // Add headers
-    Object.entries(headers).forEach(([key, value]) => {
-      if (value) {
-        const headerValue = String(value).replace(/'/g, "'\\\''");
-        curlCommand += ` \\
-  -H '${key}: ${headerValue}'`;
-      }
-    });
-
-    // Add body if present
+    let curlCommand = `curl -X ${httpMethod} "${url}" \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json"`;
     if (body) {
-      const escapedBody = body.replace(/'/g, "'\\\''");
-      curlCommand += ` \\
-  -d '${escapedBody}'`;
+      curlCommand += ` \
+      -d '${body}'`;
     }
-
     return curlCommand;
+  }
+
+  private getAvailableOperationsSummary(): string {
+    return this.tools.map(tool => `- ${tool.name}: ${tool.description || ''}`).join('\n');
+  }
+
+  private hasPlaceholderValues(parameters: Record<string, any>): boolean {
+    return Object.values(parameters).some(value => this.isPlaceholderValue(value));
+  }
+
+  private isPlaceholderValue(value: any): boolean {
+    if (typeof value === 'string') {
+      return value.trim().toLowerCase() === 'string' || value.trim() === '';
+    }
+    return value === undefined || value === null;
   }
 
   async saveConversation(conversationId: string): Promise<void> {
@@ -920,34 +857,4 @@ Extracted parameters:`;
   async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
     return await this.conversationManager.listConversations();
   }
-
-  private isPlaceholderValue(value: any): boolean {
-    if (typeof value === 'string') {
-      const placeholders = ['Unknown', 'unknown', 'N/A', 'n/a', 'TBD', 'tbd', 'placeholder'];
-      return placeholders.includes(value);
-    }
-    if (Array.isArray(value)) {
-      return value.every(v => this.isPlaceholderValue(v));
-    }
-    return false;
-  }
-
-  private hasPlaceholderValues(parameters: Record<string, any>): boolean {
-    const placeholderValues = ['Unknown', 'unknown', '', 'N/A', 'n/a', 'TBD', 'tbd'];
-    
-    for (const [key, value] of Object.entries(parameters)) {
-      if (typeof value === 'string' && placeholderValues.includes(value)) {
-        return true;
-      }
-      if (Array.isArray(value) && value.some(v => typeof v === 'string' && placeholderValues.includes(v))) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private getAvailableOperationsSummary(): string {
-    const operations = this.tools.slice(0, 5).map(tool => `• ${tool.name}: ${tool.description}`).join('\n');
-    return operations + (this.tools.length > 5 ? `\n... and ${this.tools.length - 5} more` : '');
-  }
-} 
+}

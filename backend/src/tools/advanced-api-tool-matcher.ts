@@ -36,9 +36,9 @@ interface QueryCache {
 
 export class AdvancedAPIToolMatcher {
   private openai!: OpenAI;
-  private tools: ToolWithEmb[] = [];
+  protected tools: ToolWithEmb[] = [];
   private llmEnabled: boolean = true;
-  private isInitialized: boolean = false;
+  protected isInitialized: boolean = false;
   private toolIndex: Map<string, MCPTool> = new Map();
   private keywordIndex: Map<string, MCPTool[]> = new Map();
   
@@ -221,19 +221,25 @@ export class AdvancedAPIToolMatcher {
     });
   }
 
-  private async embed(text: string): Promise<number[]> {
-    if (!this.llmEnabled) return [];
-    
+  protected async embed(text: string): Promise<number[]> {
+    if (!this.llmEnabled) {
+      // Return a simple hash-based embedding for fallback
+      const hash = text.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      return Array.from({ length: 1536 }, (_, i) => Math.sin(hash + i) * 0.1);
+    }
+
     try {
-      this.metrics.embeddingCalls++;
-      const { data } = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text.slice(0, 4096)
+      const response = await this.openai.embeddings.create({
+        model: 'text-embedding-ada-002',
+        input: text
       });
-      return data[0].embedding;
+      return response.data[0].embedding;
     } catch (error) {
-      console.warn('Failed to generate embedding:', error);
-      return [];
+      console.error('Error generating embedding:', error);
+      throw error;
     }
   }
 
@@ -265,118 +271,31 @@ export class AdvancedAPIToolMatcher {
     return stopWords.includes(word);
   }
 
-  async findBestMatch(message: string): Promise<MatchResult | null> {
-    const startTime = Date.now();
-    this.metrics.totalQueries++;
-
-    if (!this.isInitialized || this.tools.length === 0) {
-      throw new Error('Tool matcher not initialized with tools');
-    }
-
-    try {
-      const candidates = await this.getTopCandidates(message, 5);
-      
-      if (candidates.length === 0) {
-        return this.createFallbackResult();
-      }
-
-      // Use LLM for final selection among top candidates
-      let bestMatch: MatchResult | null = null;
-      
-      if (this.llmEnabled) {
-        bestMatch = await this.llmBasedSelection(message, candidates);
-      }
-      
-      if (bestMatch) {
-        const alternativeTools = candidates
-          .filter(c => c.tool.name !== bestMatch!.tool.name)
-          .slice(0, 3)
-          .map(c => c.tool);
-
-        bestMatch.alternativeTools = alternativeTools;
-      } else {
-        bestMatch = this.createResultFromCandidate(candidates[0]);
-      }
-
-      // Update metrics
-      const responseTime = Date.now() - startTime;
-      this.metrics.averageResponseTime = 
-        (this.metrics.averageResponseTime * (this.metrics.totalQueries - 1) + responseTime) / this.metrics.totalQueries;
-
-      return bestMatch;
-
-    } catch (error) {
-      console.error('Error in tool matching:', error);
-      return this.fallbackMatch(message);
-    }
-  }
-
-  private detectIntent(query: string): 'create'|'read'|'update'|'delete'|'other' {
-    const verbs = {
-      create: /\b(create|add|make|post|generate|new)\b/i,
-      read:   /\b(get|show|fetch|list|retrieve|search|find|view)\b/i,
-      update: /\b(update|edit|modify|change|patch|put)\b/i,
-      delete: /\b(delete|remove|destroy|clear)\b/i
-    };
+  protected detectIntent(query: string): 'create'|'read'|'update'|'delete'|'other' {
+    const lowerQuery = query.toLowerCase();
     
-    for (const [intent, rx] of Object.entries(verbs)) {
-      if (rx.test(query)) return intent as any;
-    }
+    if (/\b(get|fetch|retrieve|find|search|list|show|display|read)\b/.test(lowerQuery)) return 'read';
+    if (/\b(create|add|insert|post|new|make)\b/.test(lowerQuery)) return 'create';
+    if (/\b(update|modify|change|edit|patch|put)\b/.test(lowerQuery)) return 'update';
+    if (/\b(delete|remove|destroy|clear)\b/.test(lowerQuery)) return 'delete';
+    
     return 'other';
   }
 
-  private calculateIntentScore(tool: MCPTool, intent: string): number {
-    const method = tool.endpoint.method.toLowerCase();
+  protected calculateIntentScore(tool: MCPTool, intent: string): number {
+    const method = tool.endpoint?.method?.toUpperCase() || '';
     
-    const perfectMatch = (
-      (intent === 'create' && method === 'post') ||
-      (intent === 'read' && method === 'get') ||
-      (intent === 'update' && (method === 'put' || method === 'patch')) ||
-      (intent === 'delete' && method === 'delete')
-    );
-    
-    return perfectMatch ? 1.0 : 0.0;
-  }
-
-  private async getTopCandidates(message: string, limit: number = 5): Promise<ScoredTool[]> {
-    const query = message.toLowerCase().trim();
-    const scoredTools: ScoredTool[] = [];
-
-    // Get query embedding with caching
-    const queryEmbedding = this.llmEnabled ? await this.getQueryEmbedding(query) : [];
-    const intent = this.detectIntent(query);
-
-    for (const tool of this.tools) {
-      const matchDetails = {
-        semanticScore: this.calculateSemanticScore(tool, queryEmbedding),
-        keywordScore: this.calculateKeywordScore(tool, query),
-        intentScore: this.calculateIntentScore(tool, intent),
-        pathScore: this.calculatePathScore(tool, query)
-      };
-
-      const totalScore = (
-        matchDetails.semanticScore * 0.5 +  // Balanced weights
-        matchDetails.intentScore   * 0.25 +
-        matchDetails.keywordScore  * 0.15 +
-        matchDetails.pathScore     * 0.1
-      );
-
-      if (totalScore > 0.1) {
-        scoredTools.push({
-          tool,
-          score: totalScore,
-          matchDetails
-        });
-      }
+    switch (intent) {
+      case 'read': return ['GET', 'HEAD'].includes(method) ? 1.0 : 0.0;
+      case 'create': return ['POST', 'PUT'].includes(method) ? 1.0 : 0.0;
+      case 'update': return ['PUT', 'PATCH'].includes(method) ? 1.0 : 0.0;
+      case 'delete': return method === 'DELETE' ? 1.0 : 0.0;
+      default: return 0.5;
     }
-
-    return scoredTools
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
   }
 
-  private cosine(a: number[], b: number[]): number {
-    if (!a.length || !b.length || a.length !== b.length) return 0;
+  protected cosine(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
     
     let dot = 0, na = 0, nb = 0;
     for (let i = 0; i < a.length; i++) {
@@ -385,138 +304,6 @@ export class AdvancedAPIToolMatcher {
       nb  += b[i] * b[i];
     }
     return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-9);
-  }
-
-  /**
-   * Enhanced query embedding with in-memory caching
-   */
-  private async getQueryEmbedding(query: string): Promise<number[]> {
-    // Check cache first
-    const cached = this.queryCache[query];
-    if (cached) {
-      cached.hitCount++;
-      cached.timestamp = Date.now(); // Refresh timestamp
-      this.metrics.cacheHits++;
-      return cached.embedding;
-    }
-
-    // Generate new embedding
-    const embedding = await this.embed(query);
-    
-    // Store in cache
-    this.queryCache[query] = {
-      embedding,
-      timestamp: Date.now(),
-      hitCount: 1
-    };
-
-    // Clean up cache if it's getting too large
-    if (Object.keys(this.queryCache).length > this.MAX_CACHE_SIZE) {
-      this.cleanupCache();
-    }
-
-    return embedding;
-  }
-
-  private calculateSemanticScore(tool: ToolWithEmb, queryEmbedding: number[]): number {
-    if (!this.llmEnabled || queryEmbedding.length === 0 || tool.embedding.length === 0) {
-      return 0;
-    }
-    return this.cosine(tool.embedding, queryEmbedding);
-  }
-
-  private calculateKeywordScore(tool: MCPTool, query: string): number {
-    const queryWords = query.split(/\s+/).filter(w => w.length > 2);
-    let score = 0;
-
-    queryWords.forEach(word => {
-      const matchingTools = this.keywordIndex.get(word.toLowerCase()) || [];
-      if (matchingTools.includes(tool)) {
-        score += 1 / (matchingTools.length || 1);
-      }
-    });
-
-    return Math.min(score / (queryWords.length || 1), 1.0);
-  }
-
-  private calculatePathScore(tool: MCPTool, query: string): number {
-    const path = tool.endpoint?.path?.toLowerCase() || '';
-    const queryWords = query.toLowerCase().split(/\s+/);
-    
-    let score = 0;
-    queryWords.forEach(word => {
-      if (word.length > 2 && path.includes(word)) {
-        score += 0.5;
-      }
-    });
-
-    return Math.min(score / (queryWords.length || 1), 1.0);
-  }
-
-  private async llmBasedSelection(message: string, candidates: ScoredTool[]): Promise<MatchResult | null> {
-    if (!this.llmEnabled) return null;
-    
-    try {
-      const functions = candidates.map(({ tool }) => ({
-        name: tool.name,
-        description: this.getToolDescription(tool),
-        parameters: {
-          type: 'object',
-          properties: tool.inputSchema?.properties || {},
-          required: tool.inputSchema?.required || []
-        }
-      }));
-
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an API assistant. Select the most appropriate tool for the user\'s request and extract parameters.'
-          },
-          {
-            role: 'user',
-            content: message
-          }
-        ],
-        functions,
-        function_call: 'auto',
-        temperature: 0.1
-      });
-
-      const functionCall = response.choices[0].message.function_call;
-      if (!functionCall) return null;
-
-      const matchedTool = candidates.find(c => c.tool.name === functionCall.name)?.tool;
-      if (!matchedTool) return null;
-
-      let parameters = {};
-      try {
-        parameters = JSON.parse(functionCall.arguments || '{}');
-      } catch (e) {
-        console.warn('Failed to parse LLM parameters:', e);
-      }
-
-      return {
-        tool: matchedTool,
-        parameters,
-        confidence: 0.9,
-        reasoning: 'Selected by LLM from embedding-filtered candidates'
-      };
-
-    } catch (error) {
-      console.error('LLM selection failed:', error);
-      return null;
-    }
-  }
-
-  private createResultFromCandidate(candidate: ScoredTool): MatchResult {
-    return {
-      tool: candidate.tool,
-      parameters: {},
-      confidence: Math.min(candidate.score, 0.8),
-      reasoning: `Best embedding match with score ${candidate.score.toFixed(2)}`
-    };
   }
 
   private createFallbackResult(): MatchResult {
@@ -528,96 +315,9 @@ export class AdvancedAPIToolMatcher {
     };
   }
 
-  private getToolDescription(tool: MCPTool): string {
-    const parts = [
-      tool.name,
-      tool.description,
-      tool.endpoint?.method && tool.endpoint?.path 
-        ? `Endpoint: ${tool.endpoint.method} ${tool.endpoint.path}`
-        : null,
-      tool.inputSchema?.description
-    ].filter(Boolean) as string[];
 
-    return parts.join('\n') || 'No description available';
-  }
 
-  private async fallbackMatch(message: string): Promise<MatchResult | null> {
-    if (!this.tools?.length) {
-      throw new Error('No tools available for matching');
-    }
-
-    const messageLower = message.toLowerCase();
-    const matchedTool = this.tools.find(tool => {
-      if (!tool?.name) return false;
-      
-      const nameMatch = tool.name.toLowerCase().includes(messageLower);
-      const descMatch = tool.description?.toLowerCase().includes(messageLower);
-      const pathMatch = tool.endpoint?.path?.toLowerCase().includes(messageLower);
-      
-      return nameMatch || descMatch || pathMatch;
-    }) || this.tools[0];
-
-    return {
-      tool: matchedTool,
-      parameters: {},
-      confidence: 0.3,
-      reasoning: 'Fallback match using simple keyword search'
-    };
-  }
-
-  /**
-   * Generate a cURL command for the given tool and parameters
-   */
-  // generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
-  //   const { method, baseUrl, path } = tool.endpoint;
-  //   let url = `${baseUrl}${path}`;
-
-  //   // Replace path parameters e.g. /users/{id}
-  //   for (const [key, value] of Object.entries(parameters)) {
-  //     if (url.includes(`{${key}}`)) {
-  //       url = url.replace(`{${key}}`, encodeURIComponent(String(value)));
-  //       delete parameters[key];
-  //     }
-  //   }
-
-  //   // Query parameters
-  //   const queryParams = new URLSearchParams();
-  //   for (const [key, value] of Object.entries(parameters)) {
-  //     if (value !== undefined && value !== null) {
-  //       queryParams.append(key, String(value));
-  //     }
-  //   }
-  //   const queryString = queryParams.toString();
-  //   if (queryString) {
-  //     url += (url.includes('?') ? '&' : '?') + queryString;
-  //   }
-
-  //   // Headers
-  //   const headers: Record<string, any> = {
-  //     'Content-Type': 'application/json',
-  //     ...(parameters.headers || {})
-  //   };
-
-  //   // Build cURL string with line continuations for readability
-  //   let curl = `curl -X ${method.toUpperCase()} "${url}"`;
-
-  //   // Append headers with backslash-newline continuation
-  //   for (const [key, value] of Object.entries(headers)) {
-  //     if (value) {
-  //       curl += ` \\\n  -H "${key}: ${value}"`;
-  //     }
-  //   }
-
-  //   // Separate body parameters (for POST/PUT/PATCH)
-  //   const bodyParams = { ...parameters } as Record<string, any>;
-  //   delete bodyParams.headers;
-
-  //   if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && Object.keys(bodyParams).length > 0) {
-  //     curl += ` \\\n  -d '${JSON.stringify(bodyParams, null, 2)}'`;
-  //   }
-
-  //   return curl;
-  // }
+ 
   generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
     let { method, path, baseUrl } = tool.endpoint;
     let url = `${baseUrl}${path}`;
@@ -695,36 +395,9 @@ export class AdvancedAPIToolMatcher {
     return curl;
   }
   
-   /**
-    * Return tools most similar to the query with their scores
-   */
-  async findSimilarTools(query: string, limit: number = 3): Promise<Array<{ tool: MCPTool; score: number }>> {
-    if (!query?.trim()) return [];
-    const candidates = await this.getTopCandidates(query, limit);
-    return candidates.map(c => ({ tool: c.tool, score: c.score }));
-  }
 
-  async explainMatch(message: string): Promise<{
-    bestMatch: MatchResult | null;
-    allCandidates: ScoredTool[];
-    explanation: string;
-    cacheStats: any;
-  }> {
-    const candidates = await this.getTopCandidates(message, 10);
-    const bestMatch = await this.findBestMatch(message);
-    
-    const explanation = candidates.length > 0 
-      ? `Found ${candidates.length} potential matches. Top candidate scored ${candidates[0].score.toFixed(2)} using embeddings + hybrid scoring.`
-      : 'No suitable tools found for the given query.';
 
-    return {
-      bestMatch,
-      allCandidates: candidates,
-      explanation,
-      cacheStats: this.getCacheStats()
-    };
-  }
-
+  
   /**
    * Cleanup method to call when shutting down
    */
