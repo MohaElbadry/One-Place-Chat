@@ -1,16 +1,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { LLMConfig } from '../config/llm-config.js';
-
-export interface LLMResponse {
-  content: string;
-  model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
+import { LLMResponse } from '../types.js';
 
 /**
  * Multi-provider LLM client supporting OpenAI, Anthropic, and Ollama.

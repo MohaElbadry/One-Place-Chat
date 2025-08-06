@@ -42,8 +42,12 @@ export class ConversationStore {
     };
 
     const state: ConversationState = {
-      isAwaitingInput: false,
-      extractedInfo: {}
+      currentTool: undefined,
+      collectedParameters: {},
+      missingRequiredFields: [],
+      suggestedOptionalFields: [],
+      conversationContext: [],
+      lastActivity: new Date()
     };
 
     this.conversations.set(conversationId, context);

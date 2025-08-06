@@ -1,24 +1,5 @@
 import { ToolEmbeddingMatcher } from './ToolEmbeddingMatcher.js';
-import { MCPTool } from '../types.js';
-
-export interface MatchResult {
-  tool: MCPTool;
-  parameters: Record<string, any>;
-  confidence: number;
-  reasoning: string;
-  alternativeTools?: MCPTool[];
-}
-
-export interface ScoredTool {
-  tool: MCPTool;
-  score: number;
-  matchDetails: {
-    semanticScore: number;
-    keywordScore: number;
-    intentScore: number;
-    pathScore: number;
-  };
-}
+import { MCPTool, MatchResult, ScoredTool } from '../types.js';
 
 /**
  * Semantic tool matcher that uses embeddings and keyword matching to find the best API tool.

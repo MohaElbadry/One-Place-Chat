@@ -4,43 +4,7 @@ import { ToolSemanticMatcher } from '../tools/ToolSemanticMatcher.js';
 import { CurlCommandExecutor } from '../tools/CurlCommandExecutor.js';
 import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
-
-export interface EnhancedChatResponse {
-  message: string;
-  needsClarification: boolean;
-  clarificationRequest?: {
-    type: 'missing_required' | 'suggest_optional' | 'confirmation';
-    message: string;
-    missingFields: Array<{
-      name: string;
-      description: string;
-      type: 'required' | 'optional';
-      possibleValues?: string[];
-      examples?: string[];
-    }>;
-    suggestedFields?: Array<{
-      name: string;
-      description: string;
-      reason: string;
-    }>;
-  };
-  toolMatch?: {
-    tool: MCPTool;
-    confidence: number;
-    parameters: Record<string, any>;
-  };
-  executionResult?: any;
-  conversationId: string;
-}
-
-export interface ConversationState {
-  currentTool?: MCPTool;
-  collectedParameters: Record<string, any>;
-  missingRequiredFields: string[];
-  suggestedOptionalFields: string[];
-  conversationContext: string[];
-  lastActivity: Date;
-}
+import { EnhancedChatResponse, ConversationState } from '../types.js';
 
 /**
  * Main conversational engine that handles natural language API interactions.

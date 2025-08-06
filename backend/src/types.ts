@@ -126,9 +126,121 @@ export interface ClarificationRequest {
 }
 
 export interface ConversationState {
-  isAwaitingInput: boolean;
-  pendingTool?: MCPTool;
-  pendingParameters?: Record<string, any>;
-  clarificationRequest?: ClarificationRequest;
-  extractedInfo: Record<string, any>;
+  currentTool?: MCPTool;
+  collectedParameters: Record<string, any>;
+  missingRequiredFields: string[];
+  suggestedOptionalFields: string[];
+  conversationContext: string[];
+  lastActivity: Date;
+}
+
+// Enhanced Chat Response Types
+export interface EnhancedChatResponse {
+  message: string;
+  needsClarification: boolean;
+  clarificationRequest?: {
+    type: 'missing_required' | 'suggest_optional' | 'confirmation';
+    message: string;
+    missingFields: Array<{
+      name: string;
+      description: string;
+      type: 'required' | 'optional';
+      possibleValues?: string[];
+      examples?: string[];
+    }>;
+    suggestedFields?: Array<{
+      name: string;
+      description: string;
+      reason: string;
+    }>;
+  };
+  toolMatch?: {
+    tool: MCPTool;
+    confidence: number;
+    parameters: Record<string, any>;
+  };
+  executionResult?: any;
+  conversationId: string;
+}
+
+// LLM Provider Types
+export interface LLMResponse {
+  content: string;
+  model: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+// Tool Matching Types
+export interface MatchResult {
+  tool: MCPTool;
+  parameters: Record<string, any>;
+  confidence: number;
+  reasoning: string;
+  alternativeTools?: MCPTool[];
+}
+
+export interface ScoredTool {
+  tool: MCPTool;
+  score: number;
+  matchDetails: {
+    semanticScore: number;
+    keywordScore: number;
+    intentScore: number;
+    pathScore: number;
+  };
+}
+
+// Tool Definition Types (for server)
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: any;
+  endpoint: {
+    method: string;
+    path: string;
+    baseUrl: string;
+  };
+  annotations: {
+    method: string;
+    path: string;
+    tags?: string[];
+    deprecated?: boolean;
+    title?: string;
+    openWorldHint?: boolean;
+    readOnlyHint?: boolean;
+  };
+  security?: any[];
+  execute: (params: any) => Promise<any>;
+}
+
+// MCP Response Types
+export interface MCPResponse {
+  id: string;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+  };
+  content?: Array<{
+    type: string;
+    text: string;
+  }>;
+  isError?: boolean;
+}
+
+// Analysis Types
+export interface ToolRequirementsAnalysis {
+  missingRequiredFields: string[];
+  suggestedOptionalFields: string[];
+}
+
+// Validation Types
+export interface FieldValidationResult {
+  isValid: boolean;
+  value: any;
+  error?: string;
 }

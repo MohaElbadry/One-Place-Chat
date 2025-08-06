@@ -3,7 +3,8 @@ import 'dotenv/config';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ToolLoader } from '../tools/ToolLoader.js';
-import { ConversationalEngine, EnhancedChatResponse } from '../core/ConversationalEngine.js';
+import { ConversationalEngine } from '../core/ConversationalEngine.js';
+import { EnhancedChatResponse } from '../types.js';
 import { getAvailableModels } from '../config/llm-config.js';
 import { MCPTool } from '../types.js';
 

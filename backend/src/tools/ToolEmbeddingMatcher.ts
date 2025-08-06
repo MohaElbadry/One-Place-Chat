@@ -1,29 +1,10 @@
-import { MCPTool } from '../types.js';
+import { MCPTool, MatchResult, ScoredTool } from '../types.js';
 import OpenAI from 'openai';
-
-export interface MatchResult {
-  tool: MCPTool;
-  parameters: Record<string, any>;
-  confidence: number;
-  reasoning: string;
-  alternativeTools?: MCPTool[];
-}
 
 type ToolWithEmb = MCPTool & { 
   embedding: number[];
   embeddingHash?: string; // For cache validation
 };
-
-export interface ScoredTool {
-  tool: MCPTool;
-  score: number;
-  matchDetails: {
-    semanticScore: number;
-    keywordScore: number;
-    intentScore: number;
-    pathScore: number;
-  };
-}
 
 // In-memory cache for query embeddings
 interface QueryCache {

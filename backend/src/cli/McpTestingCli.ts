@@ -6,35 +6,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import OpenAI from 'openai';
-
-// Types
-interface MCPTool {
-  name: string;
-  description?: string;
-  inputSchema?: {
-    type: string;
-    properties?: Record<string, any>;
-    required?: string[];
-  };
-  annotations?: {
-    method?: string;
-    path?: string;
-    title?: string;
-  };
-  endpoint?: {
-    method: string;
-    path: string;
-    baseUrl: string;
-  };
-}
-
-interface MCPResponse {
-  content: Array<{
-    type: string;
-    text: string;
-  }>;
-  isError?: boolean;
-}
+import { MCPTool, MCPResponse } from '../types.js';
 
 // Enhanced Logger
 const logger = {
@@ -601,10 +573,10 @@ class MCPCurlGenerator {
       });
 
       if (result.isError) {
-        throw new Error(`MCP Error: ${result.content[0]?.text}`);
+        throw new Error(`MCP Error: ${result.content?.[0]?.text || 'Unknown error'}`);
       }
 
-      const curlText = result.content[0]?.text || '';
+      const curlText = result.content?.[0]?.text || '';
       
       // Extract cURL command from MCP response
       const curlMatch = curlText.match(/```bash\n(curl[^`]+)\n```/);
