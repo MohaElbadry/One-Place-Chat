@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { MCPTool } from '../types.js';
+import { MCPTool } from '../types/api.types.js';
 
 export class ToolLoader {
   private tools: MCPTool[] = [];

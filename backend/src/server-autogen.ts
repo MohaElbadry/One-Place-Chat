@@ -3,7 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolLoader } from './tools/ToolLoader.js';
-import { ToolSemanticMatcher, HTTPBinToolMatcher } from './tools/ToolSemanticMatcher.js';
+import { ToolSemanticMatcher } from './tools/ToolSemanticMatcher.js';
 import { CurlCommandExecutor } from './tools/CurlCommandExecutor.js';
 import dotenv from 'dotenv';
 
@@ -26,7 +26,7 @@ class MCPAutoGenAPIServer {
     );
 
     this.toolLoader = new ToolLoader();
-    this.toolMatcher = new HTTPBinToolMatcher();
+    this.toolMatcher = new ToolSemanticMatcher();
     this.curlExecutor = new CurlCommandExecutor();
     this.setupHandlers();
   }

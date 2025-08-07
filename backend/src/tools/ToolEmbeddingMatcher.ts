@@ -1,4 +1,5 @@
-import { MCPTool, MatchResult, ScoredTool } from '../types.js';
+import { MCPTool } from '../types/api.types.js';
+import { MatchResult, ScoredTool } from '../types/llm.types.js';
 import OpenAI from 'openai';
 
 type ToolWithEmb = MCPTool & { 
@@ -84,21 +85,6 @@ export class ToolEmbeddingMatcher {
     console.log(`Cache cleaned up. Kept ${validEntries.length} entries.`);
   }
 
-  /**
-   * Get cache statistics
-   */
-  getCacheStats() {
-    return {
-      cacheSize: Object.keys(this.queryCache).length,
-      hitRate: this.metrics.totalQueries > 0 
-        ? (this.metrics.cacheHits / this.metrics.totalQueries * 100).toFixed(1) + '%'
-        : '0%',
-      totalQueries: this.metrics.totalQueries,
-      cacheHits: this.metrics.cacheHits,
-      embeddingCalls: this.metrics.embeddingCalls,
-      averageResponseTime: this.metrics.averageResponseTime.toFixed(2) + 'ms'
-    };
-  }
 
   /**
    * Clear all caches (useful for testing or memory management)
@@ -140,7 +126,7 @@ export class ToolEmbeddingMatcher {
       tool.endpoint.path
     );
 
-    // console.log(`Generating embeddings for ${filtered.length} tools...`);
+
     const startTime = Date.now();
 
     // Build embeddings if LLM is enabled
@@ -287,18 +273,6 @@ export class ToolEmbeddingMatcher {
     }
     return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-9);
   }
-
-  private createFallbackResult(): MatchResult {
-    return {
-      tool: this.tools[0],
-      parameters: {},
-      confidence: 0.1,
-      reasoning: 'No good matches found, using first available tool'
-    };
-  }
-
-
-
  
   generateCurlCommand(tool: MCPTool, parameters: Record<string, any> = {}): string {
     let { method, path, baseUrl } = tool.endpoint;
@@ -378,15 +352,4 @@ export class ToolEmbeddingMatcher {
   }
   
 
-
-  
-  /**
-   * Cleanup method to call when shutting down
-   */
-  destroy(): void {
-    if (this.cacheCleanupInterval) {
-      clearInterval(this.cacheCleanupInterval);
-    }
-    this.clearCache();
-  }
 }

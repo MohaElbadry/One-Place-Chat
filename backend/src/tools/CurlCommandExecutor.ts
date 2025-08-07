@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { MCPTool } from '../types.js';
+import { MCPTool } from '../types/api.types.js';
 
 const execAsync = promisify(exec);
 

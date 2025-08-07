@@ -4,7 +4,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { program } from 'commander';
-import { MCPTool } from './types.js';
+import { MCPTool } from './types/api.types.js';
 import { OpenApiToolParser } from './parsers/OpenApiToolParser.js';
 
 // Configuration

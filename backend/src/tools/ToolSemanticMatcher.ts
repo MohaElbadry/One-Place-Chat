@@ -1,5 +1,6 @@
 import { ToolEmbeddingMatcher } from './ToolEmbeddingMatcher.js';
-import { MCPTool, MatchResult, ScoredTool } from '../types.js';
+import { MCPTool } from '../types/api.types.js';
+import { MatchResult, ScoredTool } from '../types/llm.types.js';
 
 /**
  * Semantic tool matcher that uses embeddings and keyword matching to find the best API tool.
@@ -206,10 +207,3 @@ export class ToolSemanticMatcher extends ToolEmbeddingMatcher {
     return params;
   }
 }
-
-/**
- * HTTPBin-specific tool matcher.
- */
-export class HTTPBinToolMatcher extends ToolSemanticMatcher {}
-
-export default ToolSemanticMatcher; 

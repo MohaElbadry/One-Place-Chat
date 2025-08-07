@@ -1,22 +1,34 @@
-import { ConversationContext, ConversationMessage, ConversationState, MissingInfoAnalysis, ClarificationRequest, MissingField } from '../types.js';
+import { ConversationContext, ConversationMessage, ConversationState } from '../types/conversation.types.js';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 
 /**
- * Manages conversation storage, persistence, and state management.
- * Handles conversation creation, message storage, and file-based persistence.
+ * ConversationStore - Manages conversation persistence and state management
+ * 
+ * This class handles:
+ * - Creating and managing conversation contexts
+ * - Storing and retrieving conversation messages
+ * - Persisting conversations to disk for later retrieval
+ * - Managing conversation metadata and state
+ * - Extracting information from conversation history
+ * - Cleaning up old conversations
+ * 
+ * Conversations are stored as JSON files in a configurable directory,
+ * with each conversation having its own file containing messages and metadata.
  */
 export class ConversationStore {
   private conversations: Map<string, ConversationContext> = new Map();
   private conversationStates: Map<string, ConversationState> = new Map();
   private storageDir: string;
 
+  // Creates a new ConversationStore instance
   constructor(storageDir = './conversations') {
     this.storageDir = storageDir;
     this.ensureStorageDir();
   }
 
+  // Ensures the storage directory exists, creating it if necessary
   private async ensureStorageDir() {
     try {
       await fs.mkdir(this.storageDir, { recursive: true });
@@ -25,9 +37,7 @@ export class ConversationStore {
     }
   }
 
-  /**
-   * Create a new conversation context
-   */
+  // Creates a new conversation context with a unique ID
   createConversation(userId?: string): ConversationContext {
     const conversationId = uuidv4();
     const context: ConversationContext = {
@@ -56,9 +66,7 @@ export class ConversationStore {
     return context;
   }
 
-  /**
-   * Add a message to the conversation
-   */
+  // Adds a message to a specific conversation
   addMessage(conversationId: string, role: 'user' | 'assistant' | 'system', content: string, metadata?: any): ConversationMessage {
     const conversation = this.conversations.get(conversationId);
     if (!conversation) {
@@ -79,23 +87,17 @@ export class ConversationStore {
     return message;
   }
 
-  /**
-   * Get conversation context
-   */
+  // Retrieves a conversation context by its ID
   getConversation(conversationId: string): ConversationContext | undefined {
     return this.conversations.get(conversationId);
   }
 
-  /**
-   * Get conversation state
-   */
+  // Retrieves the current state of a conversation
   getConversationState(conversationId: string): ConversationState | undefined {
     return this.conversationStates.get(conversationId);
   }
 
-  /**
-   * Update conversation state
-   */
+  // Updates the state of a conversation with new information
   updateConversationState(conversationId: string, updates: Partial<ConversationState>): void {
     const currentState = this.conversationStates.get(conversationId);
     if (!currentState) {
@@ -105,30 +107,7 @@ export class ConversationStore {
     this.conversationStates.set(conversationId, { ...currentState, ...updates });
   }
 
-  /**
-   * Extract information from conversation history
-   */
-  extractInformationFromHistory(conversationId: string): Record<string, any> {
-    const conversation = this.conversations.get(conversationId);
-    if (!conversation) {
-      return {};
-    }
-
-    const extractedInfo: Record<string, any> = {};
-    
-    // Extract information from user messages and assistant metadata
-    for (const message of conversation.messages) {
-      if (message.role === 'user') {
-        // Simple extraction - in a real implementation, you'd use NLP
-        this.extractSimpleInfo(message.content, extractedInfo);
-      } else if (message.role === 'assistant' && message.metadata?.parameters) {
-        Object.assign(extractedInfo, message.metadata.parameters);
-      }
-    }
-
-    return extractedInfo;
-  }
-
+  // Extracts simple information from text using regex patterns
   private extractSimpleInfo(content: string, extracted: Record<string, any>): void {
     // Simple regex-based extraction
     const patterns = {
@@ -147,24 +126,8 @@ export class ConversationStore {
     }
   }
 
-  /**
-   * Get conversation summary for context
-   */
-  getConversationSummary(conversationId: string, maxMessages = 10): string {
-    const conversation = this.conversations.get(conversationId);
-    if (!conversation) {
-      return '';
-    }
 
-    const recentMessages = conversation.messages.slice(-maxMessages);
-    return recentMessages
-      .map(msg => `${msg.role}: ${msg.content}`)
-      .join('\n');
-  }
-
-  /**
-   * Save conversation to disk
-   */
+  // Saves a conversation to disk as a JSON file
   async saveConversation(conversationId: string): Promise<void> {
     const conversation = this.conversations.get(conversationId);
     const state = this.conversationStates.get(conversationId);
@@ -182,9 +145,7 @@ export class ConversationStore {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2));
   }
 
-  /**
-   * Load conversation from disk
-   */
+  // Loads a conversation from disk
   async loadConversation(conversationId: string): Promise<ConversationContext | null> {
     try {
       const filePath = join(this.storageDir, `${conversationId}.json`);
@@ -210,9 +171,7 @@ export class ConversationStore {
     }
   }
 
-  /**
-   * List all conversations
-   */
+  // Lists all available conversations with their metadata
   async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
     try {
       const files = await fs.readdir(this.storageDir);
@@ -239,27 +198,4 @@ export class ConversationStore {
     }
   }
 
-  /**
-   * Clean up old conversations
-   */
-  async cleanupOldConversations(daysOld = 30): Promise<void> {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    const conversations = await this.listConversations();
-    
-    for (const conv of conversations) {
-      if (conv.lastActivity < cutoffDate) {
-        try {
-          const filePath = join(this.storageDir, `${conv.id}.json`);
-          await fs.unlink(filePath);
-          this.conversations.delete(conv.id);
-          this.conversationStates.delete(conv.id);
-          console.log(`Cleaned up old conversation: ${conv.id}`);
-        } catch (error) {
-          console.error(`Failed to cleanup conversation ${conv.id}:`, error);
-        }
-      }
-    }
-  }
 }

@@ -1,225 +1,358 @@
-# One Place Chat - Backend
+# One-Place-Chat Backend
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A sophisticated conversational AI system that enables natural language interactions with APIs. This backend provides intelligent tool matching, parameter extraction, and API execution through a conversational interface.
 
-Backend service for One Place Chat application, featuring MCP (Machine-Readable API Client) tool generation from OpenAPI/Swagger specifications.
+## 🏗️ Architecture Overview
 
-## Features
+The backend is built with a modular architecture consisting of several key components:
 
-- 🚀 RESTful API for chat functionality
-- 🔄 Real-time messaging with WebSocket support
-- 📚 OpenAPI 3.0+ specification support
-- 🛠️ MCP tool generation from API specs
-- 🔒 JWT-based authentication
-- 📦 Containerized with Docker
+### Core Components
 
-## Features
+#### 1. **ConversationalEngine** (`src/core/ConversationalEngine.ts`)
+- **Purpose**: Main orchestrator for natural language API interactions
+- **Key Features**:
+  - Processes natural language user input
+  - Matches user intent to available API tools using semantic search
+  - Extracts and validates parameters from user input
+  - Executes API calls via cURL commands
+  - Manages conversation state and context
+  - Provides intelligent responses and clarifications
 
-- 🚀 Generate MCP tools from OpenAPI/Swagger 2.0 and 3.x specifications
-- 🛠️ Supports both local files and remote URLs
-- 📦 Lightweight and dependency-free core
-- 🔍 Automatic schema validation and type inference
-- 🎯 Optimized for large API specifications
-- 📝 Comprehensive TypeScript support
+#### 2. **ConversationStore** (`src/core/ConversationStore.ts`)
+- **Purpose**: Manages conversation persistence and state management
+- **Key Features**:
+  - Creates and manages conversation contexts
+  - Stores and retrieves conversation messages
+  - Persists conversations to disk for later retrieval
+  - Manages conversation metadata and state
+  - Extracts information from conversation history
+  - Cleans up old conversations
 
-## Project Structure
+#### 3. **LLMProvider** (`src/core/LLMProvider.ts`)
+- **Purpose**: Multi-provider LLM client supporting OpenAI, Anthropic, and Ollama
+- **Key Features**:
+  - Unified interface for different LLM providers
+  - Supports GPT-4, Claude-3, and Ollama models
+  - Handles API key management and configuration
+  - Provides consistent response formatting
 
-The codebase is organized into a clean, modular structure for better maintainability:
+### Tool Management
 
+#### 4. **ToolSemanticMatcher** (`src/tools/ToolSemanticMatcher.ts`)
+- **Purpose**: Semantic tool matcher using embeddings and keyword matching
+- **Key Features**:
+  - Uses embeddings for semantic similarity
+  - Combines multiple scoring methods (semantic, keyword, intent, path)
+  - Provides fallback to keyword matching
+  - Extracts parameters from queries
+
+#### 5. **ToolEmbeddingMatcher** (`src/tools/ToolEmbeddingMatcher.ts`)
+- **Purpose**: Advanced tool matcher using embeddings for semantic similarity
+- **Key Features**:
+  - Embedding-based matching with caching
+  - Performance optimization and metrics
+  - Cache management and cleanup
+  - Intent detection and scoring
+
+#### 6. **CurlCommandExecutor** (`src/tools/CurlCommandExecutor.ts`)
+- **Purpose**: Executes cURL commands and handles API tool execution
+- **Key Features**:
+  - Generates and executes cURL commands
+  - Handles different HTTP methods (GET, POST, PUT, DELETE)
+  - Manages headers and request bodies
+  - Provides error handling and response parsing
+
+#### 7. **ToolLoader** (`src/tools/ToolLoader.ts`)
+- **Purpose**: Loads tool definitions from JSON files
+- **Key Features**:
+  - Loads tools from specified directory
+  - Provides tool search and filtering
+  - Handles both single tools and arrays of tools
+  - Caches loaded tools for performance
+
+### Configuration & Types
+
+#### 8. **LLMConfig** (`src/config/llm-config.ts`)
+- **Purpose**: Configuration management for LLM providers
+- **Key Features**:
+  - Defines supported models and providers
+  - Manages API keys from environment variables
+  - Provides model selection utilities
+
+#### 9. **Types** (`src/types.ts`)
+- **Purpose**: TypeScript type definitions for the entire system
+- **Key Features**:
+  - MCPTool interface for API tools
+  - Conversation and message types
+  - LLM response and matching types
+  - OpenAPI integration types
+
+### Parsers & CLI
+
+#### 10. **OpenApiToolParser** (`src/parsers/OpenApiToolParser.ts`)
+- **Purpose**: Parser for OpenAPI specifications that generates MCP tools
+- **Key Features**:
+  - Converts OpenAPI operations into executable tool definitions
+  - Handles parameter extraction and schema resolution
+  - Supports both OpenAPI 2.0 and 3.x specifications
+  - Generates proper input schemas for tools
+
+#### 11. **ChatInterface** (`src/cli/ChatInterface.ts`)
+- **Purpose**: Interactive CLI chat interface for the conversational engine
+- **Key Features**:
+  - User-friendly command-line interface
+  - Model selection and conversation management
+  - Real-time chat with the AI system
+  - Conversation history and resumption
+
+#### 12. **McpTestingCli** (`src/cli/McpTestingCli.ts`)
+- **Purpose**: Testing and development CLI for MCP tools
+- **Key Features**:
+  - Tool listing and searching
+  - cURL command generation
+  - API execution testing
+  - OpenAI integration for enhanced generation
+
+## 🔄 Workflow Overview
+
+### 1. **Tool Generation Phase**
 ```
-src/utils/generator/
-├── index.ts                 # Main exports and entry point
-├── types/                   # TypeScript type definitions
-│   ├── document.types.ts    # Document processing types
-│   └── mcp-tool.types.ts    # MCP tool related types
-├── loaders/                 # Document loading utilities
-│   └── document-loader.ts   # Handles loading API specs from files/URLs
-├── validators/              # Document validation
-│   └── document-validator.ts # Validates OpenAPI/Swagger documents
-├── chunkers/                # Document chunking for large specs
-│   └── document-chunker.ts  # Splits large documents into chunks
-├── processors/              # Endpoint processing
-│   └── endpoint-processor.ts # Processes API endpoints
-├── generators/              # Tool generation
-│   └── tool-generator.ts    # Generates MCP tools from endpoints
-└── optimizers/              # Tool optimization
-    └── tool-optimizer.ts    # Optimizes and deduplicates tools
-```
-
-### Key Components
-
-1. **Main Exports (`index.ts`)**
-   - Primary interface for the MCP Tool Generator
-   - Orchestrates the entire tool generation pipeline
-   - Handles error handling and result formatting
-
-2. **Type Definitions (`types/`)**
-   - Strong TypeScript types for all interfaces
-   - Clear separation of document and tool types
-   - Self-documenting code with JSDoc comments
-
-3. **Document Processing (`loaders/`, `validators/`, `chunkers/`)**
-   - Load API specifications from various sources
-   - Validate document structure and content
-   - Efficiently process large documents by chunking
-
-4. **Tool Generation (`processors/`, `generators/`, `optimizers/`)**
-   - Extract and process API endpoints
-   - Generate MCP tools with proper schemas
-   - Optimize and deduplicate generated tools
-
-## Prerequisites
-
-- Node.js 20.x or later
-- npm 9.x or later
-- Docker (optional, for containerization)
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/one-place-chat.git
-   cd one-place-chat/backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-## Running the Server
-
-### Development Mode
-```bash
-npm run dev
-```
-
-### Production Mode
-```bash
-npm start
-```
-
-### Using Docker
-```bash
-docker-compose up --build
-```
-
-## API Endpoints
-
-- `GET /health` - Health check endpoint
-- `POST /api/generate-tools` - Generate MCP tools from OpenAPI spec
-  - Body: `{ "filePath": "path/to/openapi.json" }`
-
-## Development
-
-### Testing
-```bash
-npm test
+OpenAPI Spec → OpenApiToolParser → MCPTool Definitions → JSON Files
 ```
 
-### Linting
-```bash
-npm run lint
+1. **Input**: OpenAPI specification files (Swagger/OpenAPI 3.x)
+2. **Processing**: `OpenApiToolParser` converts operations to `MCPTool` objects
+3. **Output**: JSON files in `generated-tools/` directory
+
+### 2. **Initialization Phase**
+```
+ToolLoader → ToolSemanticMatcher → ConversationalEngine → LLMProvider
 ```
 
-### Building for Production
-```bash
-npm run build
+1. **Tool Loading**: `ToolLoader` reads JSON files and creates tool objects
+2. **Embedding Generation**: `ToolSemanticMatcher` creates embeddings for semantic search
+3. **Engine Setup**: `ConversationalEngine` initializes with tools and LLM provider
+4. **Model Selection**: User selects preferred LLM model (GPT-4, Claude-3, etc.)
+
+### 3. **Conversation Flow**
+```
+User Input → Tool Matching → Parameter Extraction → Validation → Execution → Response
 ```
 
-#### With Custom Output Directory
-```bash
-mcp-tool-generator generate -i api-spec.json -o ./my-tools
+#### Step 1: **User Input Processing**
+- User provides natural language request
+- `ConversationalEngine.processMessage()` receives input
+- Conversation state is updated with timestamp
+
+#### Step 2: **Tool Matching**
+- `ToolSemanticMatcher.findBestMatch()` analyzes user input
+- Combines semantic similarity, keyword matching, and intent detection
+- Returns best matching tool with confidence score
+- If confidence < threshold (0.6), requests clarification
+
+#### Step 3: **Parameter Extraction**
+- `extractParametersFromInput()` uses LLM to extract parameters
+- Maps natural language to exact schema field names
+- Validates parameter types and formats
+- Filters out irrelevant words and placeholder values
+
+#### Step 4: **Requirement Analysis**
+- `analyzeToolRequirements()` checks required vs optional fields
+- Identifies missing required parameters
+- Suggests useful optional parameters
+- Handles path parameters for GET requests
+
+#### Step 5: **Clarification or Execution**
+- **If missing required fields**: Creates clarification request
+- **If all required fields present**: Proceeds to execution
+- **If optional fields suggested**: Offers to add them
+
+#### Step 6: **API Execution**
+- `generateCurlCommand()` creates proper cURL command
+- `CurlCommandExecutor.executeCurl()` runs the command
+- Response is parsed and formatted
+- Success/error messages are generated
+
+#### Step 7: **Response Generation**
+- Formatted response with cURL command and results
+- Conversation state is reset for next interaction
+- Message is stored in conversation history
+
+### 4. **Persistence & State Management**
+```
+ConversationStore → JSON Files → Conversation Context → Message History
 ```
 
-#### Process Remote API Spec
-```bash
-mcp-tool-generator generate -i https://example.com/api-docs.json
-```
+- Each conversation has unique ID and persistent storage
+- Messages and metadata are saved to disk
+- Conversation state tracks current tool and parameters
+- Automatic cleanup removes old conversations
 
-## Programmatic Usage
-
-```typescript
-import { MCPToolGenerator } from 'mcp-tool-generator';
-
-async function generateTools() {
-  const generator = new MCPToolGenerator();
-  const result = await generator.generateMCPTools('path/to/api-spec.json');
-  
-  console.log(`Generated ${result.tools.length} tools`);
-  console.log('First tool:', result.tools[0]);
-}
-
-generateTools().catch(console.error);
-```
-
-## Output Format
-
-The generator produces a JSON file with the following structure:
-
-```typescript
-{
-  "tools": [
-    {
-      "name": "getUserById",
-      "description": "Retrieves a user by ID",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "userId": { "type": "string" }
-        },
-        "required": ["userId"]
-      },
-      "annotations": {
-        "title": "Get User by ID",
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false
-      }
-    }
-  ],
-  "metadata": {
-    "totalEndpoints": 1,
-    "processedChunks": 1,
-    "apiInfo": {
-      "title": "Example API",
-      "version": "1.0.0"
-    },
-    "processingTime": 123
-  }
-}
-```
-
-## Development
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 14+
+- Node.js 18+ 
 - npm or yarn
+- OpenAI API key (optional, for enhanced features)
 
-### Building from Source
+### Installation
 ```bash
-git clone https://github.com/your-username/mcp-tool-generator.git
-cd mcp-tool-generator
+cd backend
 npm install
-npm run build
 ```
 
-### Running Tests
+### Environment Setup
+Create a `.env` file:
+```env
+OPENAI_API_KEY=your_openai_key_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+```
+
+### Usage
+
+#### 1. Generate Tools from OpenAPI Spec
 ```bash
-npm test
+npm run generate-tools
+# or
+node src/index.ts generate --spec api-docs/Petstore/swagger.json
 ```
 
-## License
+#### 2. Start Interactive Chat
+```bash
+npm run chat
+# or
+node src/cli/ChatInterface.ts
+```
 
-MIT © [Your Name]
+#### 3. Test MCP Tools
+```bash
+node src/cli/McpTestingCli.ts
+```
 
-## Contributing
+## 📁 File Structure
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+```
+backend/
+├── src/
+│   ├── core/                    # Core engine components
+│   │   ├── ConversationalEngine.ts
+│   │   ├── ConversationStore.ts
+│   │   └── LLMProvider.ts
+│   ├── tools/                   # Tool management
+│   │   ├── ToolSemanticMatcher.ts
+│   │   ├── ToolEmbeddingMatcher.ts
+│   │   ├── CurlCommandExecutor.ts
+│   │   └── ToolLoader.ts
+│   ├── config/                  # Configuration
+│   │   └── llm-config.ts
+│   ├── parsers/                 # Input parsing
+│   │   └── OpenApiToolParser.ts
+│   ├── cli/                     # Command-line interfaces
+│   │   ├── ChatInterface.ts
+│   │   └── McpTestingCli.ts
+│   ├── types.ts                 # Type definitions
+│   ├── index.ts                 # Main entry point
+│   └── server-autogen.ts        # MCP server
+├── generated-tools/             # Generated tool definitions
+├── conversations/               # Conversation storage
+├── api-docs/                   # OpenAPI specifications
+└── package.json
+```
+
+## 🔧 Configuration
+
+### Supported LLM Models
+- **OpenAI**: GPT-4, GPT-4 Turbo
+- **Anthropic**: Claude-3 Sonnet, Claude-3 Opus
+- **Ollama**: o3 (local models)
+
+### Tool Generation Options
+- Single file output (default)
+- Individual files per tool
+- Custom output directories
+- Multiple OpenAPI specs
+
+## 🧪 Testing
+
+### Tool Testing
+```bash
+# Test specific tool
+node src/cli/McpTestingCli.ts
+# Select "Generate cURL" and choose a tool
+```
+
+### Conversation Testing
+```bash
+# Start interactive chat
+npm run chat
+# Try natural language requests like:
+# "Get a pet with ID 5"
+# "Create a new pet named Fluffy"
+# "Find pets with status available"
+```
+
+## 🔍 Debugging
+
+### Enable Debug Logging
+```bash
+DEBUG=* npm run chat
+```
+
+### Check Tool Loading
+```bash
+# Verify tools are loaded correctly
+node -e "const { ToolLoader } = require('./dist/tools/ToolLoader.js'); new ToolLoader().loadTools('./generated-tools').then(tools => console.log('Loaded', tools.length, 'tools'));"
+```
+
+### Monitor Conversation State
+- Check `conversations/` directory for saved conversations
+- Review conversation JSON files for debugging
+- Monitor console output for tool matching confidence scores
+
+## 🚨 Error Handling
+
+### Common Issues
+1. **Tool Not Found**: Check if OpenAPI spec is valid and tools are generated
+2. **Parameter Extraction Failed**: Verify LLM API key is set correctly
+3. **API Execution Error**: Check if target API is accessible and parameters are correct
+4. **Embedding Generation Failed**: Ensure OpenAI API key is available
+
+### Troubleshooting
+- Check environment variables are set correctly
+- Verify generated tools exist in `generated-tools/` directory
+- Ensure target APIs are accessible from your network
+- Review conversation logs for detailed error messages
+
+## 🔄 Development Workflow
+
+1. **Add New API**: Place OpenAPI spec in `api-docs/`
+2. **Generate Tools**: Run tool generation command
+3. **Test Tools**: Use CLI to test new tools
+4. **Update Engine**: Modify `ConversationalEngine` if needed
+5. **Test Conversations**: Use chat interface to test natural language
+
+## 📈 Performance Considerations
+
+- **Embedding Caching**: Tool embeddings are cached for performance
+- **Conversation Cleanup**: Old conversations are automatically removed
+- **Memory Management**: Conversation states are cleaned up after timeout
+- **API Rate Limiting**: Built-in delays and retry logic for API calls
+
+## 🔐 Security
+
+- API keys are loaded from environment variables
+- No sensitive data is logged or stored in plain text
+- Conversation data is stored locally in JSON format
+- cURL commands are sanitized before execution
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.

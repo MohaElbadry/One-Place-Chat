@@ -4,9 +4,11 @@ import {
   MCPTool,
   OpenAPIParameter,
   OpenAPIOperation,
+} from "../types/api.types.js";
+import {
   HttpMethod,
   ParameterLocation,
-} from "../types.js";
+} from "../types/common.types.js";
 
 /**
  * Parser for OpenAPI specifications that generates MCP tools.

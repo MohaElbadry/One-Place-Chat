@@ -4,9 +4,9 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ToolLoader } from '../tools/ToolLoader.js';
 import { ConversationalEngine } from '../core/ConversationalEngine.js';
-import { EnhancedChatResponse } from '../types.js';
+import { EnhancedChatResponse } from '../types/conversation.types.js';
 import { getAvailableModels } from '../config/llm-config.js';
-import { MCPTool } from '../types.js';
+import { MCPTool } from '../types/api.types.js';
 
 /**
  * Interactive CLI chat interface for the conversational engine.
@@ -196,8 +196,6 @@ class ChatInterface {
                 if (!this.currentConversationId) {
                     this.currentConversationId = this.chatEngine.startConversation();
                 }
-                // TODO: to remove it 
-                // console.log(chalk.gray('\n🤖 Processing...'));
                 const response = await this.chatEngine.processMessage(this.currentConversationId, message);
                 
                 console.log(chalk.gray('\n🤖 Assistant:'));
