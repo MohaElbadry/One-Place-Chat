@@ -140,7 +140,7 @@ export class ToolEmbeddingMatcher {
       tool.endpoint.path
     );
 
-    console.log(`Initializing ${filtered.length} tools with in-memory embeddings...`);
+    // console.log(`Generating embeddings for ${filtered.length} tools...`);
     const startTime = Date.now();
 
     // Build embeddings if LLM is enabled
@@ -155,12 +155,10 @@ export class ToolEmbeddingMatcher {
           );
           
           if (existingTool) {
-            console.log(`Using cached embedding for tool: ${tool.name}`);
             return existingTool;
           }
 
-          // Generate new embedding
-          console.log(`Generating embedding for tool ${index + 1}/${filtered.length}: ${tool.name}`);
+          // Generate new embedding (silent)
           const embedding = await this.embed(this.serializeTool(tool));
           
           return {
@@ -183,7 +181,6 @@ export class ToolEmbeddingMatcher {
     this.isInitialized = true;
     
     const initTime = Date.now() - startTime;
-    console.log(`Tool matcher initialized in ${initTime}ms. Embeddings stored in memory.`);
   }
 
   private serializeTool(tool: MCPTool): string {

@@ -42,6 +42,7 @@ class ChatInterface {
         
         if (conversations.length === 0) {
             console.log(chalk.blue('💬 Starting a new conversation...\n'));
+            await this.generateEmbeddingsForNewConversation();
             this.currentConversationId = this.chatEngine.startConversation();
             this.startChat();
             return;
@@ -66,6 +67,7 @@ class ChatInterface {
         ]);
 
         if (choice === 'new') {
+            await this.generateEmbeddingsForNewConversation();
             this.currentConversationId = this.chatEngine.startConversation();
         } else if (choice === 'show-all') {
             await this.showAllConversations();
@@ -77,6 +79,21 @@ class ChatInterface {
         }
 
         this.startChat();
+    }
+
+    /**
+     * Generate embeddings when starting a new conversation
+     */
+    private async generateEmbeddingsForNewConversation() {
+        console.log(chalk.yellow('🧠 Generating embeddings for faster interactions...'));
+        
+        try {
+            // Initialize the tool matcher with embeddings
+            await this.chatEngine.initializeToolMatcher();
+            console.log(chalk.green('✅ Embeddings generated successfully'));
+        } catch (error) {
+            console.log(chalk.gray('   (Embedding generation failed, continuing with basic matching)'));
+        }
     }
 
     private async showAllConversations() {
@@ -155,7 +172,7 @@ class ChatInterface {
     }
 
     private async startChat() {
-        console.log(chalk.blue('\n💬 Chat started! Type your request or "exit" to quit.\n'));
+        console.log(chalk.blue('\n-> Chat started! Type your request or "exit" to quit.\n'));
         
         while (true) {
             try {
@@ -179,8 +196,8 @@ class ChatInterface {
                 if (!this.currentConversationId) {
                     this.currentConversationId = this.chatEngine.startConversation();
                 }
-
-                console.log(chalk.gray('\n🤖 Processing...'));
+                // TODO: to remove it 
+                // console.log(chalk.gray('\n🤖 Processing...'));
                 const response = await this.chatEngine.processMessage(this.currentConversationId, message);
                 
                 console.log(chalk.gray('\n🤖 Assistant:'));

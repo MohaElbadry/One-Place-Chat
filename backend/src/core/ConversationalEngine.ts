@@ -49,6 +49,17 @@ export class ConversationalEngine {
   }
 
   /**
+   * Initialize tool matcher with embeddings
+   */
+  async initializeToolMatcher(): Promise<void> {
+    try {
+      await this.toolMatcher.initialize(this.tools);
+    } catch (error) {
+      console.error('Failed to initialize tool matcher:', error);
+    }
+  }
+
+  /**
    * Starts a new conversation and returns the conversation ID.
    * Initializes conversation state and sends welcome message.
    * @returns The unique conversation ID
