@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { ToolLoader } from '../tools/ToolLoader.js';
+import { ChromaDBToolLoader } from '../tools/ChromaDBToolLoader.js';
 import { ConversationalEngine } from '../core/ConversationalEngine.js';
 import { EnhancedChatResponse } from '../types/conversation.types.js';
 import { getAvailableModels } from '../config/llm-config.js';
@@ -24,11 +24,11 @@ class ChatInterface {
 
     async initialize() {
         console.clear();
-        console.log(chalk.blue('🔍 Loading tools...'));
-        const loader = new ToolLoader();
-        this.tools = await loader.loadTools('./generated-tools');
+        console.log(chalk.blue('🔍 Loading tools from ChromaDB...'));
+        const loader = new ChromaDBToolLoader();
+        this.tools = await loader.loadTools();
         this.chatEngine.updateTools(this.tools);
-        console.log(chalk.green(`✅ Loaded ${this.tools.length} tools`));
+        console.log(chalk.green(`✅ Loaded ${this.tools.length} tools from ChromaDB`));
         
         // Select model
         await this.selectModel();

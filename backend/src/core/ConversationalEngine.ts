@@ -1,6 +1,6 @@
 import { ConversationStore } from './ConversationStore.js';
 import { MCPTool } from '../types/api.types.js';
-import { ToolSemanticMatcher } from '../tools/ToolSemanticMatcher.js';
+import { ChromaDBToolMatcher } from '../tools/ChromaDBToolMatcher.js';
 import { CurlCommandExecutor } from '../tools/CurlCommandExecutor.js';
 import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
@@ -24,7 +24,7 @@ import { EnhancedChatResponse, ConversationState } from '../types/conversation.t
  */
 export class ConversationalEngine {
   private conversationStore: ConversationStore;
-  private toolMatcher: ToolSemanticMatcher;
+  private toolMatcher: ChromaDBToolMatcher;
   private executor: CurlCommandExecutor;
   private llm: LLMProvider;
   private tools: MCPTool[] = [];
@@ -35,7 +35,7 @@ export class ConversationalEngine {
 
   constructor(modelName: string = 'gpt-4') {
     this.conversationStore = new ConversationStore();
-    this.toolMatcher = new ToolSemanticMatcher();
+    this.toolMatcher = new ChromaDBToolMatcher(process.env.OPENAI_API_KEY);
     this.executor = new CurlCommandExecutor();
     const config = getLLMConfig(modelName);
     this.llm = new LLMProvider(config);
@@ -69,6 +69,10 @@ export class ConversationalEngine {
    */
   async initializeToolMatcher(): Promise<void> {
     try {
+      if (this.tools.length === 0) {
+        console.log('ℹ️ No tools available to initialize tool matcher');
+        return;
+      }
       await this.toolMatcher.initialize(this.tools);
     } catch (error) {
       console.error('Failed to initialize tool matcher:', error);
