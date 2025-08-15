@@ -25,16 +25,18 @@ export class ChromaDBToolLoader {
       await this.chromaService.initialize();
       
       // Get all tools from the generated_tools collection
-      console.log('🔍 Attempting to load tools from generated_tools collection...');
       const toolEmbeddings = await this.chromaService.getToolsFromCollection('generated_tools');
-      console.log(`📊 Found ${toolEmbeddings.length} tool embeddings`);
       
       // Extract the actual MCPTool objects
       this.tools = toolEmbeddings.map(te => te.tool);
-      console.log(`🔧 Extracted ${this.tools.length} MCPTool objects`);
       
       this.loaded = true;
-      console.log(`✅ Loaded ${this.tools.length} tools from ChromaDB`);
+      // Only log if no tools found (potential issue) or significant number
+      if (this.tools.length === 0) {
+        console.log('⚠️ No tools found in ChromaDB');
+      } else if (this.tools.length > 50) {
+        console.log(`✅ Loaded ${this.tools.length} tools from ChromaDB`);
+      }
       return this.tools;
     } catch (error) {
       console.error('❌ Error loading tools from ChromaDB:', error);

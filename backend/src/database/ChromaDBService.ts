@@ -40,7 +40,10 @@ export class ChromaDBService {
   private isInitialized = false;
 
   constructor() {
-    this.client = new ChromaClient({ path: 'http://localhost:8000' });
+    this.client = new ChromaClient({ 
+      host: 'localhost',
+      port: 8000 
+    });
   }
 
   async initialize(): Promise<void> {
@@ -62,7 +65,7 @@ export class ChromaDBService {
       });
 
       this.isInitialized = true;
-      console.log('✅ ChromaDB initialized successfully');
+      // Removed verbose initialization logging
     } catch (error) {
       console.error('❌ Failed to initialize ChromaDB:', error);
       throw error;
@@ -189,26 +192,15 @@ export class ChromaDBService {
     if (!this.isInitialized) throw new Error('ChromaDB not initialized');
 
     try {
-      console.log(`🔍 Getting collection: ${collectionName}`);
       const collection = await this.client.getCollection({
         name: collectionName
       });
-      console.log(`✅ Collection ${collectionName} retrieved successfully`);
 
-      console.log(`📊 Getting all items from collection ${collectionName}...`);
       const results = await collection.get({
         include: ['metadatas', 'documents', 'embeddings']
       });
-      console.log(`📊 Collection results:`, {
-        hasIds: !!results.ids,
-        idsLength: results.ids?.length,
-        hasMetadatas: !!results.metadatas,
-        hasDocuments: !!results.documents,
-        hasEmbeddings: !!results.embeddings
-      });
 
       if (!results.ids || !results.metadatas || !results.documents) {
-        console.log(`❌ Missing required data in collection ${collectionName}`);
         return [];
       }
 
@@ -219,7 +211,6 @@ export class ChromaDBService {
         metadata: results.metadatas![index] as any
       }));
 
-      console.log(`✅ Successfully parsed ${toolEmbeddings.length} tools from collection ${collectionName}`);
       return toolEmbeddings;
     } catch (error) {
       console.error(`❌ Error getting tools from collection ${collectionName}:`, error);
@@ -284,8 +275,13 @@ export class ChromaDBService {
 
     // Convert metadata to ChromaDB-compatible format
     const chromaMetadata = {
-      startTime: conversation.metadata.startTime.toISOString(),
-      lastActivity: conversation.metadata.lastActivity.toISOString(),
+      conversationId: conversation.id,
+      startTime: conversation.metadata.startTime instanceof Date 
+        ? conversation.metadata.startTime.toISOString() 
+        : conversation.metadata.startTime,
+      lastActivity: conversation.metadata.lastActivity instanceof Date 
+        ? conversation.metadata.lastActivity.toISOString() 
+        : conversation.metadata.lastActivity,
       messageCount: conversation.messages.length,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -368,8 +364,13 @@ export class ChromaDBService {
     const simpleEmbedding = this.generateSimpleEmbedding(conversationText);
 
     const chromaMetadata = {
-      startTime: conversation.metadata.startTime.toISOString(),
-      lastActivity: conversation.metadata.lastActivity.toISOString(),
+      conversationId: conversation.id,
+      startTime: conversation.metadata.startTime instanceof Date 
+        ? conversation.metadata.startTime.toISOString() 
+        : conversation.metadata.startTime,
+      lastActivity: conversation.metadata.lastActivity instanceof Date 
+        ? conversation.metadata.lastActivity.toISOString() 
+        : conversation.metadata.lastActivity,
       messageCount: conversation.messages.length,
       updatedAt: new Date().toISOString()
     };

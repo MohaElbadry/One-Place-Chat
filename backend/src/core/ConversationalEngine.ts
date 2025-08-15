@@ -1,6 +1,7 @@
-import { ConversationStore } from './ConversationStore.js';
+import { ConversationStoreChroma } from './ConversationStoreChroma.js';
 import { MCPTool } from '../types/api.types.js';
 import { ChromaDBToolMatcher } from '../tools/ChromaDBToolMatcher.js';
+import { ChromaDBService } from '../database/ChromaDBService.js';
 import { CurlCommandExecutor } from '../tools/CurlCommandExecutor.js';
 import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
@@ -23,7 +24,7 @@ import { EnhancedChatResponse, ConversationState } from '../types/conversation.t
  * - Response generation and formatting
  */
 export class ConversationalEngine {
-  private conversationStore: ConversationStore;
+  private conversationStore: ConversationStoreChroma;
   private toolMatcher: ChromaDBToolMatcher;
   private executor: CurlCommandExecutor;
   private llm: LLMProvider;
@@ -34,13 +35,27 @@ export class ConversationalEngine {
 
 
   constructor(modelName: string = 'gpt-4') {
-    this.conversationStore = new ConversationStore();
+    const chromaService = new ChromaDBService();
+    this.conversationStore = new ConversationStoreChroma(chromaService);
     this.toolMatcher = new ChromaDBToolMatcher(process.env.OPENAI_API_KEY);
     this.executor = new CurlCommandExecutor();
     const config = getLLMConfig(modelName);
     this.llm = new LLMProvider(config);
 
+    // Note: Conversation store will be initialized later via initializeConversationStore()
+
     setInterval(() => this.cleanupStaleConversations(), 5 * 60 * 1000); // Every 5 minutes
+  }
+
+  /**
+   * Initialize the conversation store (public method)
+   */
+  async initializeConversationStore(): Promise<void> {
+    try {
+      await this.conversationStore.initialize();
+    } catch (error) {
+      console.error('❌ Failed to initialize conversation store:', error);
+    }
   }
 
   /**
@@ -76,9 +91,7 @@ export class ConversationalEngine {
         return;
       }
       
-      console.log(`🔧 Initializing tool matcher with ${this.tools.length} tools...`);
       await this.toolMatcher.initialize(this.tools);
-      console.log('✅ Tool matcher initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize tool matcher:', error);
       // Don't throw error, just log it and continue

@@ -24,17 +24,19 @@ class ChatInterface {
 
     async initialize() {
         console.clear();
-        console.log(chalk.blue('🔍 Loading tools from ChromaDB...'));
+        console.log(chalk.blue('🚀 Starting One-Place-Chat...'));
+        
         const loader = new ChromaDBToolLoader();
         this.tools = await loader.loadTools();
         this.chatEngine.updateTools(this.tools);
-        console.log(chalk.green(`✅ Loaded ${this.tools.length} tools from ChromaDB`));
         
-        // Wait for tool matcher initialization to complete
+        // Initialize systems
         if (this.tools.length > 0) {
-            console.log(chalk.blue('🔧 Initializing tool matcher...'));
             await this.chatEngine.initializeToolMatcher();
         }
+        await this.chatEngine.initializeConversationStore();
+        
+        console.log(chalk.green(`✅ Ready! ${this.tools.length} API tools available`));
         
         // Select model
         await this.selectModel();
@@ -143,9 +145,16 @@ class ChatInterface {
                 }
             ]);
             
-            this.selectedModel = model;
-            this.chatEngine = new ConversationalEngine(model);
-            this.chatEngine.updateTools(this.tools);
+            // Only create new engine if model changed
+            if (this.selectedModel !== model) {
+                this.selectedModel = model;
+                this.chatEngine = new ConversationalEngine(model);
+                this.chatEngine.updateTools(this.tools);
+                
+                // Re-initialize conversation store for new model
+                await this.chatEngine.initializeConversationStore();
+                console.log(chalk.gray(`Switched to ${model}`));
+            }
         }
     }
 

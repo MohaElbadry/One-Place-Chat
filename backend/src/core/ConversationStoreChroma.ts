@@ -25,7 +25,7 @@ export class ConversationStoreChroma {
       await this.loadAllConversationsFromDB();
       
       this.isInitialized = true;
-      console.log('✅ ChromaDB-based conversation store initialized');
+      // Removed verbose initialization logging
     } catch (error) {
       console.error('❌ Failed to initialize ChromaDB-based conversation store:', error);
       throw error;
@@ -61,7 +61,10 @@ export class ConversationStoreChroma {
         });
       }
       
-      console.log(`📚 Loaded ${conversationEmbeddings.length} conversations from ChromaDB`);
+      // Only log if conversations found
+      if (conversationEmbeddings.length > 0) {
+        console.log(`📚 Loaded ${conversationEmbeddings.length} conversation${conversationEmbeddings.length === 1 ? '' : 's'}`);
+      }
     } catch (error) {
       console.error('Error loading conversations from ChromaDB:', error);
     }
@@ -145,9 +148,18 @@ export class ConversationStoreChroma {
       }
     }
 
-    // Update in ChromaDB
-    this.chromaService.updateConversation(conversationId, conversation).catch(error => {
-      console.error(`Failed to update conversation ${conversationId} in ChromaDB:`, error);
+    // Update in ChromaDB (try update first, then store if not found)
+    this.chromaService.updateConversation(conversationId, conversation).catch(async (updateError) => {
+      if (updateError instanceof Error && updateError.message.includes('not found')) {
+        // If conversation doesn't exist, store it as new
+        try {
+          await this.chromaService.storeConversation(conversation);
+        } catch (storeError) {
+          console.error(`Failed to store new conversation ${conversationId} in ChromaDB:`, storeError);
+        }
+      } else {
+        console.error(`Failed to update conversation ${conversationId} in ChromaDB:`, updateError);
+      }
     });
 
     return message;
@@ -202,7 +214,17 @@ export class ConversationStoreChroma {
     }
 
     try {
-      await this.chromaService.updateConversation(conversationId, conversation);
+      // Try to update first, if it fails, store as new conversation
+      try {
+        await this.chromaService.updateConversation(conversationId, conversation);
+      } catch (updateError) {
+        // If update fails (conversation doesn't exist), store it as new
+        if (updateError instanceof Error && updateError.message.includes('not found')) {
+          await this.chromaService.storeConversation(conversation);
+        } else {
+          throw updateError;
+        }
+      }
     } catch (error) {
       console.error(`Failed to save conversation ${conversationId}:`, error);
       throw error;

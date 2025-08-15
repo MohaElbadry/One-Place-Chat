@@ -37,12 +37,13 @@ export class ChromaDBToolMatcher {
         console.log('🔄 No existing tools found in ChromaDB, generating embeddings...');
         await this.generateAndStoreToolEmbeddings(tools);
       } else {
-        console.log(`✅ Found ${existingTools.length} existing tools in ChromaDB`);
         // Verify all current tools are stored
         const currentToolIds = new Set(tools.map(t => t.name));
         const storedToolIds = new Set(existingTools.map(t => t.tool.name));
         
         const missingTools = tools.filter(t => !storedToolIds.has(t.name));
+        
+        // Only log if we're adding new tools
         if (missingTools.length > 0) {
           console.log(`🔄 Adding ${missingTools.length} new tools to ChromaDB...`);
           await this.generateAndStoreToolEmbeddings(missingTools);
@@ -50,7 +51,7 @@ export class ChromaDBToolMatcher {
       }
       
       this._initialized = true;
-      console.log('✅ ChromaDB tool matcher initialized successfully');
+      // Removed verbose initialization logging
     } catch (error) {
       console.error('❌ Failed to initialize ChromaDB tool matcher:', error);
       throw error;
