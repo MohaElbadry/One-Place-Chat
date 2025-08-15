@@ -30,6 +30,12 @@ class ChatInterface {
         this.chatEngine.updateTools(this.tools);
         console.log(chalk.green(`✅ Loaded ${this.tools.length} tools from ChromaDB`));
         
+        // Wait for tool matcher initialization to complete
+        if (this.tools.length > 0) {
+            console.log(chalk.blue('🔧 Initializing tool matcher...'));
+            await this.chatEngine.initializeToolMatcher();
+        }
+        
         // Select model
         await this.selectModel();
         
@@ -42,7 +48,6 @@ class ChatInterface {
         
         if (conversations.length === 0) {
             console.log(chalk.blue('💬 Starting a new conversation...\n'));
-            await this.generateEmbeddingsForNewConversation();
             this.currentConversationId = this.chatEngine.startConversation();
             this.startChat();
             return;
@@ -67,7 +72,6 @@ class ChatInterface {
         ]);
 
         if (choice === 'new') {
-            await this.generateEmbeddingsForNewConversation();
             this.currentConversationId = this.chatEngine.startConversation();
         } else if (choice === 'show-all') {
             await this.showAllConversations();
@@ -81,20 +85,7 @@ class ChatInterface {
         this.startChat();
     }
 
-    /**
-     * Generate embeddings when starting a new conversation
-     */
-    private async generateEmbeddingsForNewConversation() {
-        console.log(chalk.yellow('🧠 Generating embeddings for faster interactions...'));
-        
-        try {
-            // Initialize the tool matcher with embeddings
-            await this.chatEngine.initializeToolMatcher();
-            console.log(chalk.green('✅ Embeddings generated successfully'));
-        } catch (error) {
-            console.log(chalk.gray('   (Embedding generation failed, continuing with basic matching)'));
-        }
-    }
+
 
     private async showAllConversations() {
         const conversations = await this.chatEngine.listConversations();

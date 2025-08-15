@@ -61,6 +61,8 @@ export class ConversationalEngine {
    */
   updateTools(tools: MCPTool[]): void {
     this.tools = tools;
+    // Initialize tool matcher when tools are updated
+    this.initializeToolMatcher();
   }
 
   /**
@@ -73,9 +75,13 @@ export class ConversationalEngine {
         console.log('ℹ️ No tools available to initialize tool matcher');
         return;
       }
+      
+      console.log(`🔧 Initializing tool matcher with ${this.tools.length} tools...`);
       await this.toolMatcher.initialize(this.tools);
+      console.log('✅ Tool matcher initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize tool matcher:', error);
+      console.error('❌ Failed to initialize tool matcher:', error);
+      // Don't throw error, just log it and continue
     }
   }
 
