@@ -1,0 +1,9 @@
+
+🚀 Generating tools with ChromaDB integration...
+The 'path' argument is deprecated. Please use 'ssl', 'host', and 'port' instead
+✅ ChromaDB connection successful
+❌ Tool generation failed: Error: OpenAPI specification file not found: list-collections
+    at generateToolsWithChromaDB (file:///home/elbadry_/Desktop/One-Place-Chat/backend/dist/index-with-chromadb.js:64:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Command.<anonymous> (file:///home/elbadry_/Desktop/One-Place-Chat/backend/dist/index-with-chromadb.js:245:5)
+[201~

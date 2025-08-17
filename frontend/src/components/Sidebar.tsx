@@ -1,118 +1,129 @@
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
 
-interface SidebarProps {
-  onConversationSelect: (conversationId: string) => void;
-  selectedConversationId?: string;
+interface Conversation {
+  id: string;
+  title: string;
+  lastMessage: string;
+  messageCount: number;
+  lastActivity: string;
 }
 
-export default function Sidebar({ onConversationSelect, selectedConversationId }: SidebarProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Mock data - will be replaced with real API calls
-  const conversations = [
-    { id: '1', title: 'Chat', lastMessage: 'Now', isActive: true },
-    { id: '2', title: 'Petstore API Chat', lastMessage: '2h ago', isActive: false },
-  ];
+interface SidebarProps {
+  conversations: Conversation[];
+  selectedConversationId: string | null;
+  onConversationSelect: (conversationId: string) => void;
+  onNewConversation: () => void;
+  onConversationDelete: (conversationId: string) => void;
+}
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+export default function Sidebar({ 
+  conversations, 
+  selectedConversationId, 
+  onConversationSelect,
+  onNewConversation,
+  onConversationDelete
+}: SidebarProps) {
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const handleConversationClick = (conversationId: string) => {
+    onConversationSelect(conversationId);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this conversation?')) {
+      onConversationDelete(conversationId);
+    }
+  };
 
   return (
-    <div className="w-80 bg-dark-800 border-r border-dark-600 flex flex-col">
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-dark-600">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            One-Place-Chat
-          </h1>
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-dark-700 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-              </svg>
-            </button>
-            <button className="p-2 hover:bg-dark-700 rounded-lg transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-              </svg>
-            </button>
-          </div>
+          <h1 className="text-xl font-bold text-gray-800">One-Place-Chat</h1>
         </div>
         
-        {/* Search */}
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search conversations..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
+        {/* New Conversation Button */}
+        <button
+          onClick={onNewConversation}
+          className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="w-4 h-4">+</span>
+          New Conversation
+        </button>
       </div>
 
-      {/* Conversations Section */}
-      <div className="flex-1 overflow-hidden">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-medium text-gray-300">Conversations</h2>
-            <button className="p-1 hover:bg-dark-700 rounded transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-              </svg>
-            </button>
+      {/* Conversations List */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {conversations.length === 0 ? (
+          <div className="p-4 text-center text-gray-500">
+            <span className="w-8 h-8 mx-auto mb-2 text-gray-300">•</span>
+            <p className="text-sm">No conversations yet</p>
+            <p className="text-xs text-gray-400">Start chatting to create your first conversation</p>
           </div>
-          
-          {/* New Conversation Button */}
-          <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg p-3 mb-3 transition-all duration-200 flex items-center gap-2 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            New conversation
-          </button>
-        </div>
-
-        {/* Chat List */}
-        <div className="chat-scroll overflow-y-auto flex-1 px-2">
-          <div className="space-y-1">
-            {filteredConversations.map((conversation) => (
-              <div 
+        ) : (
+          <div className="p-2">
+            {conversations.map((conversation) => (
+              <div
                 key={conversation.id}
-                onClick={() => onConversationSelect(conversation.id)}
-                className={`${
-                  conversation.isActive 
-                    ? 'bg-dark-700 border-l-2 border-blue-500' 
-                    : 'hover:bg-dark-700'
-                } rounded-r-lg p-3 cursor-pointer transition-colors`}
+                onClick={() => handleConversationClick(conversation.id)}
+                className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 group ${
+                  selectedConversationId === conversation.id
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'hover:bg-gray-50 border border-transparent'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-medium ${
-                    conversation.isActive ? 'text-blue-400' : 'text-gray-300'
-                  }`}>
-                    {conversation.title}
-                  </span>
-                  <span className="text-xs text-gray-500">{conversation.lastMessage}</span>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 truncate">
+                      {conversation.title || 'New Conversation'}
+                    </h3>
+                    <p className="text-sm text-gray-600 truncate mt-1">
+                      {conversation.lastMessage || 'No messages yet'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                      <span>{conversation.messageCount} messages</span>
+                      <span>•</span>
+                      <span>{formatTime(conversation.lastActivity)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => handleDeleteClick(e, conversation.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all ml-2"
+                    title="Delete conversation"
+                  >
+                    <span className="w-4 h-4">×</span>
+                  </button>
                 </div>
-                {!conversation.isActive && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">
-                    Last message {conversation.lastMessage}
-                  </p>
-                )}
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Start a new chat section */}
-      <div className="p-4 border-t border-dark-600">
-        <p className="text-xs text-gray-400 mb-2">Start a new chat</p>
+      {/* Footer */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-200">
+        <div className="text-xs text-gray-500 text-center">
+          <p>Powered by ChromaDB & AI</p>
+          <p className="mt-1">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
+        </div>
       </div>
     </div>
   );

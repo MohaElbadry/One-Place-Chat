@@ -113,6 +113,43 @@ The backend is built with a modular architecture consisting of several key compo
   - API execution testing
   - OpenAI integration for enhanced generation
 
+### REST API Server
+
+#### 13. **Express Server** (`src/api/server.ts`)
+- **Purpose**: REST API server for frontend integration
+- **Key Features**:
+  - Express.js web server with middleware
+  - CORS support for frontend access
+  - Security headers with Helmet
+  - Request logging with Morgan
+  - Error handling and validation
+
+#### 14. **Tools API** (`src/api/routes/tools.ts`)
+- **Purpose**: REST endpoints for tool management
+- **Key Features**:
+  - `GET /api/tools` - List all available tools
+  - `GET /api/tools/search` - Search tools by query
+  - `GET /api/tools/:id` - Get specific tool details
+  - `GET /api/tools/categories/:category` - Filter tools by category
+  - `GET /api/tools/stats` - Get tools statistics
+
+#### 15. **Conversations API** (`src/api/routes/conversations.ts`)
+- **Purpose**: REST endpoints for conversation management
+- **Key Features**:
+  - `GET /api/conversations` - List all conversations
+  - `POST /api/conversations` - Create new conversation
+  - `GET /api/conversations/:id` - Get conversation details
+  - `POST /api/conversations/:id/messages` - Add message to conversation
+  - `DELETE /api/conversations/:id` - Delete conversation
+  - `GET /api/conversations/:id/stats` - Get conversation statistics
+
+#### 16. **Health API** (`src/api/routes/health.ts`)
+- **Purpose**: System health monitoring endpoints
+- **Key Features**:
+  - `GET /api/health` - Basic health check
+  - `GET /api/health/detailed` - Detailed health with service status
+  - `GET /api/health/ready` - Readiness probe for deployment
+
 ## 🔄 Workflow Overview
 
 ### 1. **Tool Generation Phase**
@@ -229,11 +266,41 @@ node src/cli/ChatInterface.ts
 node src/cli/McpTestingCli.ts
 ```
 
+#### 4. Start REST API Server
+```bash
+# Development mode
+npm run api:dev
+
+# Production mode
+npm run api
+
+# Automated setup
+./setup-api.sh
+```
+
+#### 5. Test REST API Endpoints
+```bash
+# Health check
+curl http://localhost:3001/api/health
+
+# Get all tools
+curl http://localhost:3001/api/tools
+
+# Get all conversations
+curl http://localhost:3001/api/conversations
+```
+
 ## 📁 File Structure
 
 ```
 backend/
 ├── src/
+│   ├── api/                     # REST API server
+│   │   ├── server.ts            # Main Express server
+│   │   └── routes/              # API route handlers
+│   │       ├── tools.ts         # Tools API endpoints
+│   │       ├── conversations.ts # Conversations API endpoints
+│   │       └── health.ts        # Health check endpoints
 │   ├── core/                    # Core engine components
 │   │   ├── ConversationalEngine.ts
 │   │   ├── ConversationStore.ts
@@ -256,6 +323,8 @@ backend/
 ├── generated-tools/             # Generated tool definitions
 ├── conversations/               # Conversation storage
 ├── api-docs/                   # OpenAPI specifications
+├── setup-api.sh                 # Automated API setup script
+├── API_SETUP.md                 # Detailed API setup guide
 └── package.json
 ```
 
@@ -289,6 +358,38 @@ npm run chat
 # "Get a pet with ID 5"
 # "Create a new pet named Fluffy"
 # "Find pets with status available"
+```
+
+### REST API Testing
+```bash
+# Start the API server
+npm run api:dev
+
+# Test health endpoint
+curl http://localhost:3001/api/health
+
+# Test tools endpoint
+curl http://localhost:3001/api/tools
+
+# Test conversations endpoint
+curl http://localhost:3001/api/conversations
+
+# Create a new conversation
+curl -X POST http://localhost:3001/api/conversations \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Test Conversation"}'
+```
+
+### API Server Management
+```bash
+# Start API server in development mode
+npm run api:dev
+
+# Build and start API server in production
+npm run api
+
+# Automated setup (includes dependency installation and ChromaDB)
+./setup-api.sh
 ```
 
 ## 🔍 Debugging
@@ -344,6 +445,65 @@ node -e "const { ToolLoader } = require('./dist/tools/ToolLoader.js'); new ToolL
 - No sensitive data is logged or stored in plain text
 - Conversation data is stored locally in JSON format
 - cURL commands are sanitized before execution
+
+## 🌐 REST API Server
+
+### Overview
+The backend now includes a full-featured REST API server that provides programmatic access to all system functionality.
+
+### Features
+- **Express.js Server**: Modern, fast web server with middleware support
+- **CORS Support**: Configured for frontend integration
+- **Security Headers**: Helmet.js for security best practices
+- **Request Logging**: Morgan for HTTP request logging
+- **Error Handling**: Comprehensive error handling and validation
+- **Health Monitoring**: Built-in health check endpoints
+
+### API Endpoints
+
+#### Tools Management
+- `GET /api/tools` - List all available tools with pagination
+- `GET /api/tools/search?q={query}` - Search tools by query
+- `GET /api/tools/{id}` - Get detailed tool information
+- `GET /api/tools/categories/{category}` - Filter tools by category
+- `GET /api/tools/stats` - Get tools statistics
+
+#### Conversation Management
+- `GET /api/conversations` - List all conversations with search and pagination
+- `POST /api/conversations` - Create new conversation
+- `GET /api/conversations/{id}` - Get conversation details and messages
+- `POST /api/conversations/{id}/messages` - Add message to conversation
+- `DELETE /api/conversations/{id}` - Delete conversation
+- `GET /api/conversations/{id}/stats` - Get conversation statistics
+- `GET /api/conversations/stats/overview` - Get system-wide conversation stats
+
+#### System Health
+- `GET /api/health` - Basic health check
+- `GET /api/health/detailed` - Detailed health with service status
+- `GET /api/health/ready` - Readiness probe for deployment
+
+### Quick Start
+```bash
+# Install dependencies
+npm install
+
+# Start ChromaDB
+docker-compose -f docker-compose.chromadb.yml up -d
+
+# Start API server
+npm run api:dev
+
+# Test endpoints
+curl http://localhost:3001/api/health
+curl http://localhost:3001/api/tools
+curl http://localhost:3001/api/conversations
+```
+
+### Frontend Integration
+The REST API is designed to work seamlessly with the Next.js frontend. See `frontend/src/lib/api.ts` for the complete API client implementation.
+
+### Documentation
+For detailed API setup and usage instructions, see `API_SETUP.md`.
 
 ## 🤝 Contributing
 

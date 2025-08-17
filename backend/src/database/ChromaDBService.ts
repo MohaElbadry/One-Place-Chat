@@ -25,11 +25,27 @@ export interface ConversationEmbedding {
   metadata: {
     startTime: string;
     lastActivity: string;
-    userPreferences?: Record<string, any>;
-    extractedInfo?: Record<string, any>;
+    userPreferences?: string; // JSON stringified
+    extractedInfo?: string; // JSON stringified
     messageCount: number;
+    title: string;
+    lastMessage: string;
     createdAt: string;
     updatedAt: string;
+  };
+}
+
+export interface MessageEmbedding {
+  id: string;
+  conversationId: string;
+  message: ConversationMessage;
+  embedding: number[];
+  metadata: {
+    role: string;
+    content: string;
+    timestamp: string;
+    conversationId: string;
+    createdAt: string;
   };
 }
 
@@ -37,6 +53,7 @@ export class ChromaDBService {
   private client: ChromaClient;
   private toolsCollection: Collection | null = null;
   private conversationsCollection: Collection | null = null;
+  private messagesCollection: Collection | null = null;
   private isInitialized = false;
 
   constructor() {
@@ -64,6 +81,14 @@ export class ChromaDBService {
         }
       });
 
+      // Create or get messages collection
+      this.messagesCollection = await this.client.getOrCreateCollection({
+        name: 'messages',
+        metadata: {
+          description: 'Individual conversation messages with embeddings for semantic search'
+        }
+      });
+
       this.isInitialized = true;
       // Removed verbose initialization logging
     } catch (error) {
@@ -75,6 +100,22 @@ export class ChromaDBService {
   // Tool Management
   async storeToolEmbedding(tool: MCPTool, embedding: number[]): Promise<string> {
     if (!this.isInitialized) throw new Error('ChromaDB not initialized');
+
+    // Check if tool already exists based on name, method, and path
+    const existingTools = await this.toolsCollection!.get({
+      where: {
+        name: tool.name,
+        method: tool.annotations.method,
+        path: tool.annotations.path
+      },
+      include: ['metadatas']
+    });
+
+    if (existingTools.ids && existingTools.ids.length > 0) {
+      // Tool already exists, return existing ID
+      console.log(`Tool ${tool.name} already exists, skipping duplicate insertion`);
+      return existingTools.ids[0] as string;
+    }
 
     const toolEmbedding: ToolEmbedding = {
       id: uuidv4(),
@@ -250,6 +291,21 @@ export class ChromaDBService {
   async storeConversation(conversation: ConversationContext): Promise<string> {
     if (!this.isInitialized) throw new Error('ChromaDB not initialized');
 
+    // Check if conversation already exists based on conversationId
+    const existingConversations = await this.conversationsCollection!.get({
+      where: {
+        conversationId: conversation.id
+      },
+      include: ['metadatas']
+    });
+
+    if (existingConversations.ids && existingConversations.ids.length > 0) {
+      // Conversation already exists, update it instead of creating duplicate
+      console.log(`Conversation ${conversation.id} already exists, updating instead of creating duplicate`);
+      await this.updateConversation(conversation.id, conversation);
+      return existingConversations.ids[0] as string;
+    }
+
     const conversationEmbedding: ConversationEmbedding = {
       id: uuidv4(),
       conversationId: conversation.id,
@@ -257,9 +313,11 @@ export class ChromaDBService {
       metadata: {
         startTime: conversation.metadata.startTime.toISOString(),
         lastActivity: conversation.metadata.lastActivity.toISOString(),
-        userPreferences: conversation.metadata.userPreferences,
-        extractedInfo: conversation.metadata.extractedInfo,
+        userPreferences: conversation.metadata.userPreferences ? JSON.stringify(conversation.metadata.userPreferences) : undefined,
+        extractedInfo: conversation.metadata.extractedInfo ? JSON.stringify(conversation.metadata.extractedInfo) : undefined,
         messageCount: conversation.messages.length,
+        title: conversation.messages.length > 0 ? conversation.messages[0].content.substring(0, 50) : 'New Conversation',
+        lastMessage: conversation.messages.length > 0 ? conversation.messages[conversation.messages.length - 1].content.substring(0, 100) : '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -294,7 +352,57 @@ export class ChromaDBService {
       documents: [JSON.stringify(conversation)]
     });
 
+    // Store individual messages for better scalability and search
+    await this.storeMessages(conversation.id, conversation.messages);
+
     return conversationEmbedding.id;
+  }
+
+  // Store individual messages for better scalability and search
+  async storeMessages(conversationId: string, messages: ConversationMessage[]): Promise<void> {
+    if (!this.isInitialized || !this.messagesCollection) return;
+
+    try {
+      // Clear existing messages for this conversation to prevent duplicates
+      await this.messagesCollection.delete({
+        where: { conversationId }
+      });
+
+      if (messages.length === 0) return;
+
+      const messageIds: string[] = [];
+      const messageEmbeddings: number[][] = [];
+      const messageMetadatas: any[] = [];
+      const messageDocuments: string[] = [];
+
+      for (const message of messages) {
+        const messageId = uuidv4();
+        const messageText = message.content;
+        const simpleEmbedding = this.generateSimpleEmbedding(messageText);
+
+        messageIds.push(messageId);
+        messageEmbeddings.push(simpleEmbedding);
+        messageMetadatas.push({
+          role: message.role,
+          content: message.content.substring(0, 100), // Store truncated content in metadata
+          timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
+          conversationId: conversationId,
+          createdAt: new Date().toISOString()
+        });
+        messageDocuments.push(JSON.stringify(message));
+      }
+
+      await this.messagesCollection.add({
+        ids: messageIds,
+        embeddings: messageEmbeddings,
+        metadatas: messageMetadatas,
+        documents: messageDocuments
+      });
+
+      console.log(`✅ Stored ${messages.length} messages for conversation ${conversationId}`);
+    } catch (error) {
+      console.error(`❌ Error storing messages for conversation ${conversationId}:`, error);
+    }
   }
 
   async findSimilarConversations(query: string, limit: number = 5): Promise<ConversationEmbedding[]> {
@@ -363,8 +471,19 @@ export class ChromaDBService {
     
     const simpleEmbedding = this.generateSimpleEmbedding(conversationText);
 
+    // Use the title from metadata if available, otherwise use the first user message
+    const firstUserMessage = conversation.messages.find(msg => msg.role === 'user');
+    const title = conversation.metadata.title || (firstUserMessage ? firstUserMessage.content.substring(0, 50) : 'New Conversation');
+    
+    // Get the last message content
+    const lastMessage = conversation.messages.length > 0 
+      ? conversation.messages[conversation.messages.length - 1].content.substring(0, 100)
+      : '';
+
     const chromaMetadata = {
       conversationId: conversation.id,
+      title: title,
+      lastMessage: lastMessage,
       startTime: conversation.metadata.startTime instanceof Date 
         ? conversation.metadata.startTime.toISOString() 
         : conversation.metadata.startTime,
@@ -372,6 +491,8 @@ export class ChromaDBService {
         ? conversation.metadata.lastActivity.toISOString() 
         : conversation.metadata.lastActivity,
       messageCount: conversation.messages.length,
+      userPreferences: conversation.metadata.userPreferences ? JSON.stringify(conversation.metadata.userPreferences) : undefined,
+      extractedInfo: conversation.metadata.extractedInfo ? JSON.stringify(conversation.metadata.extractedInfo) : undefined,
       updatedAt: new Date().toISOString()
     };
 
@@ -381,6 +502,9 @@ export class ChromaDBService {
       metadatas: [chromaMetadata],
       documents: [JSON.stringify(conversation)]
     });
+
+    // Also update the individual messages
+    await this.storeMessages(conversationId, conversation.messages);
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
@@ -395,6 +519,67 @@ export class ChromaDBService {
       await this.conversationsCollection!.delete({
         ids: existing.ids as string[]
       });
+    }
+  }
+
+  // Clean up duplicate conversations, keeping only the most recent one for each conversationId
+  async cleanupDuplicateConversations(): Promise<number> {
+    if (!this.isInitialized) throw new Error('ChromaDB not initialized');
+
+    try {
+      const results = await this.conversationsCollection!.get({
+        include: ['metadatas']
+      });
+
+      if (!results.ids || !results.metadatas) {
+        return 0;
+      }
+
+      // Group by conversationId to find duplicates
+      const conversationGroups = new Map<string, Array<{ id: string; lastActivity: string; createdAt: string }>>();
+      
+      results.ids.forEach((id, index) => {
+        const metadata = results.metadatas[index];
+        if (metadata) {
+          const conversationId = metadata.conversationId as string;
+          if (!conversationGroups.has(conversationId)) {
+            conversationGroups.set(conversationId, []);
+          }
+          conversationGroups.get(conversationId)!.push({
+            id: id as string,
+            lastActivity: metadata.lastActivity as string || metadata.createdAt as string,
+            createdAt: metadata.createdAt as string
+          });
+        }
+      });
+
+      // Find duplicates and mark for deletion
+      const idsToDelete: string[] = [];
+      
+      for (const [conversationId, records] of conversationGroups) {
+        if (records.length > 1) {
+          // Sort by lastActivity, keep the most recent
+          records.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+          
+          // Mark older duplicates for deletion
+          for (let i = 1; i < records.length; i++) {
+            idsToDelete.push(records[i].id);
+          }
+        }
+      }
+
+      if (idsToDelete.length > 0) {
+        await this.conversationsCollection!.delete({
+          ids: idsToDelete
+        });
+        console.log(`🧹 Cleaned up ${idsToDelete.length} duplicate conversations`);
+        return idsToDelete.length;
+      }
+
+      return 0;
+    } catch (error) {
+      console.error('❌ Error cleaning up duplicate conversations:', error);
+      return 0;
     }
   }
 
@@ -417,12 +602,41 @@ export class ChromaDBService {
       return [];
     }
 
-    return results.ids.map((id, index) => ({
-      id: id as string,
-      conversationId: metadatas[index].conversationId as string,
-      messages: JSON.parse(documents[index] as string).messages,
-      metadata: metadatas[index] as any
-    }));
+    // Deduplicate conversations by conversationId, keeping the most recent one
+    const conversationMap = new Map<string, ConversationEmbedding>();
+    
+    results.ids.forEach((id, index) => {
+      const metadata = metadatas[index];
+      if (!metadata || !metadata.conversationId) return; // Skip invalid entries
+      
+      const conversationId = metadata.conversationId as string;
+      const existing = conversationMap.get(conversationId);
+      
+      const currentLastActivity = metadata.lastActivity || metadata.createdAt;
+      
+      if (!existing) {
+        // First time seeing this conversationId, add it
+        conversationMap.set(conversationId, {
+          id: id as string,
+          conversationId: conversationId,
+          messages: JSON.parse(documents[index] as string).messages,
+          metadata: metadata as any
+        });
+      } else {
+        // Check if current entry is more recent
+        const existingLastActivity = existing.metadata.lastActivity || existing.metadata.createdAt;
+        if (new Date(currentLastActivity as string) > new Date(existingLastActivity as string)) {
+          conversationMap.set(conversationId, {
+            id: id as string,
+            conversationId: conversationId,
+            messages: JSON.parse(documents[index] as string).messages,
+            metadata: metadata as any
+          });
+        }
+      }
+    });
+
+    return Array.from(conversationMap.values());
   }
 
   // Utility Methods

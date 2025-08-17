@@ -1,123 +1,308 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-interface ChatAreaProps {
-  message: string;
-  setMessage: (message: string) => void;
-  onSendMessage: () => void;
-  onQuickAction: (actionText: string) => void;
-  selectedConversationId?: string;
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  toolMatch?: any;
+  needsClarification?: boolean;
+  clarificationRequest?: any;
 }
 
-export default function ChatArea({ 
-  message, 
-  setMessage, 
-  onSendMessage, 
-  onQuickAction,
-  selectedConversationId 
-}: ChatAreaProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+interface ChatAreaProps {
+  selectedConversationId: string | null;
+  onConversationUpdate?: (conversation: any) => void;
+}
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+export default function ChatArea({ selectedConversationId, onConversationUpdate }: ChatAreaProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load conversation when selectedConversationId changes
+  useEffect(() => {
+    if (selectedConversationId) {
+      loadConversation(selectedConversationId);
+    } else {
+      // Start new conversation
+      setCurrentConversationId(null);
+      setMessages([]);
+    }
+  }, [selectedConversationId]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const loadConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/conversations/${conversationId}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCurrentConversationId(conversationId);
+        setMessages(result.data.messages || []);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage = inputValue.trim();
+    setInputValue('');
+    setIsLoading(true);
+
+    // Add user message to UI immediately
+    const newUserMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, newUserMessage]);
+
+    try {
+      // Prepare request payload
+      const payload: any = {
+        message: userMessage
+      };
+
+      // Add conversationId if we have one
+      if (currentConversationId) {
+        payload.conversationId = currentConversationId;
+      }
+
+      const response = await fetch('http://localhost:3001/api/conversations/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update conversation ID if this is a new conversation
+        if (result.data.isNewConversation) {
+          setCurrentConversationId(result.data.conversationId);
+        }
+
+        // Add assistant response to UI
+        const assistantMessage: Message = {
+          id: Date.now().toString() + '-assistant',
+          role: 'assistant',
+          content: result.data.assistantResponse.content,
+          timestamp: result.data.assistantResponse.timestamp,
+          toolMatch: result.data.assistantResponse.toolMatch,
+          needsClarification: result.data.assistantResponse.needsClarification,
+          clarificationRequest: result.data.assistantResponse.clarificationRequest
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Notify parent component about conversation update
+        if (onConversationUpdate) {
+          onConversationUpdate(result.data.conversation);
+        }
+      } else {
+        // Handle error
+        const errorMessage: Message = {
+          id: Date.now().toString() + '-error',
+          role: 'assistant',
+          content: `Error: ${result.error || 'Failed to process message'}`,
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString() + '-error',
+        role: 'assistant',
+        content: 'Error: Failed to connect to server',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSendMessage();
+      handleSendMessage();
     }
   };
 
-  const handleInput = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 128) + 'px';
-    }
+  const getRoleColor = (role: string) => {
+    return role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800';
   };
 
-  const quickActions = [
-    { text: "Show me all available pets", color: "text-blue-400" },
-    { text: "Create a new pet named Fluffy", color: "text-green-400" },
-    { text: "Upload API documentation", color: "text-purple-400" },
-  ];
+  const getRoleLabel = (role: string) => {
+    return role === 'user' ? 'You' : 'Assistant';
+  };
+
+  const formatMessageTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const renderToolInfo = (toolMatch: any) => {
+    if (!toolMatch) return null;
+
+    return (
+      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="text-sm text-blue-800">
+          <div className="font-semibold">🔧 Tool Detected: {toolMatch.tool.name}</div>
+          <div className="text-xs text-blue-600 mt-1">
+            📊 Confidence: {(toolMatch.confidence * 100).toFixed(1)}%
+          </div>
+          <div className="text-xs text-blue-600 mt-1">
+            📝 {toolMatch.tool.description}
+          </div>
+          <div className="text-xs text-blue-600 mt-1">
+            🌐 {toolMatch.tool.endpoint.method} {toolMatch.tool.endpoint.path}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderClarificationRequest = (clarificationRequest: any) => {
+    if (!clarificationRequest) return null;
+
+    return (
+      <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="text-sm text-yellow-800">
+          <div className="font-semibold">❓ {clarificationRequest.message}</div>
+          {clarificationRequest.missingFields && (
+            <div className="mt-2">
+              <div className="text-xs font-medium">Missing Information:</div>
+              {clarificationRequest.missingFields.map((field: any, index: number) => (
+                <div key={index} className="text-xs mt-1">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    field.type === 'required' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {field.type === 'required' ? 'Required' : 'Optional'}: {field.name}
+                  </span>
+                  {field.description && (
+                    <span className="text-gray-600 ml-2">- {field.description}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="flex-1 flex flex-col">
-      {/* Chat Header */}
-      <div className="bg-dark-800 border-b border-dark-600 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Chat</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Tools</span>
-            <button className="p-2 hover:bg-dark-700 rounded-lg transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Chat Messages Area */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-            </svg>
-          </div>
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-3">
-            Welcome to One-Place-Chat
-          </h3>
-          <p className="text-gray-400 mb-6">
-            Start a conversation by typing a message below. You can ask me to interact with any API using natural language.
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="flex-shrink-0 p-4 border-b bg-gray-50">
+        <h2 className="text-lg font-semibold text-gray-800">
+          {currentConversationId ? 'Chat' : 'New Conversation'}
+        </h2>
+        {currentConversationId && (
+          <p className="text-sm text-gray-600 mt-1">
+            Conversation ID: {currentConversationId.substring(0, 8)}...
           </p>
-          
-          {/* Quick Action Buttons */}
-          <div className="space-y-2">
-            {quickActions.map((action, index) => (
-              <button 
-                key={index}
-                onClick={() => onQuickAction(action.text)}
-                className="w-full bg-dark-700 hover:bg-dark-600 border border-dark-600 hover:border-gray-500 rounded-lg p-3 text-left transition-all duration-200 text-sm"
-              >
-                <span className={action.color}>"{action.text}"</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Message Input */}
-      <div className="border-t border-dark-600 p-4">
-        <div className="flex items-end gap-3">
-          <div className="flex-1 relative">
-            <textarea 
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onInput={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message here..." 
-              className="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-32"
-              rows={1}
-            />
-            <button className="absolute right-3 bottom-3 p-1 text-gray-400 hover:text-white transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-              </svg>
-            </button>
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+        {messages.length === 0 && !currentConversationId ? (
+          <div className="text-center text-gray-500 mt-8">
+            <div className="text-lg font-medium mb-2">Start a new conversation</div>
+            <div className="text-sm">Type your message below to begin chatting</div>
           </div>
-          <button 
-            onClick={onSendMessage}
-            className="gradient-border"
-          >
-            <div className="gradient-border-content px-6 py-3 flex items-center gap-2 text-white font-medium hover:bg-dark-600 transition-colors">
-              <span>Send</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-              </svg>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id} className="flex gap-3">
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${getRoleColor(message.role)}`}>
+                {getRoleLabel(message.role).charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-gray-900">
+                    {getRoleLabel(message.role)}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {formatMessageTime(message.timestamp)}
+                  </span>
+                </div>
+                <div className="text-gray-800 whitespace-pre-wrap">
+                  {message.content}
+                </div>
+                
+                {/* Render tool information if available */}
+                {message.toolMatch && renderToolInfo(message.toolMatch)}
+                
+                {/* Render clarification request if needed */}
+                {message.clarificationRequest && renderClarificationRequest(message.clarificationRequest)}
+              </div>
             </div>
+          ))
+        )}
+        
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex gap-3">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <div className="w-4 h-4 animate-spin text-gray-600">⏳</div>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-gray-500">Assistant is thinking...</div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area */}
+      <div className="flex-shrink-0 p-4 border-t bg-gray-50">
+        <div className="flex gap-2">
+          <textarea
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message here..."
+            className="flex-1 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={2}
+            disabled={isLoading}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!inputValue.trim() || isLoading}
+            className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isLoading ? (
+              <span className="animate-spin">⏳</span>
+            ) : (
+              <span>📤</span>
+            )}
+            Send
           </button>
         </div>
       </div>

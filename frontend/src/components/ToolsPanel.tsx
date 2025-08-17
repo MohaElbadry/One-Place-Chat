@@ -1,83 +1,153 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 
-export default function ToolsPanel() {
+interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  method: string;
+  path: string;
+  tags: string[];
+  deprecated: boolean;
+  title: string;
+  readOnly: boolean;
+  openWorld: boolean;
+}
+
+interface ToolsPanelProps {
+  tools: Tool[];
+}
+
+export default function ToolsPanel({ tools }: ToolsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Mock data - will be replaced with real API calls
-  const tools = [
-    {
-      name: 'Petstore API',
-      status: 'active',
-      endpoints: 12,
-      methods: [
-        { method: 'GET', path: '/pet', color: 'text-blue-400' },
-        { method: 'POST', path: '/pet', color: 'text-green-400' },
-        { method: 'PUT', path: '/pet', color: 'text-yellow-400' },
-      ]
-    },
-    {
-      name: 'Weather API',
-      status: 'active',
-      endpoints: 8,
-      methods: [
-        { method: 'GET', path: '/weather', color: 'text-blue-400' },
-        { method: 'GET', path: '/forecast', color: 'text-blue-400' },
-      ]
-    }
-  ];
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const filteredTools = tools.filter(tool =>
-    tool.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500';
-      case 'inactive':
-        return 'bg-red-500';
+  const getMethodColor = (method: string) => {
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return 'bg-green-100 text-green-800';
+      case 'POST':
+        return 'bg-blue-100 text-blue-800';
+      case 'PUT':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'DELETE':
+        return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-500';
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getCategoryFromPath = (path: string) => {
+    const segments = path.split('/').filter(Boolean);
+    return segments.length > 0 ? segments[0] : 'other';
+  };
+
+  const categories = ['all', ...Array.from(new Set(tools.map(tool => getCategoryFromPath(tool.path))))];
+
+  const filteredTools = tools.filter(tool => {
+    const matchesSearch = tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         tool.path.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'all' || getCategoryFromPath(tool.path) === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'pet':
+        return <span className="text-gray-600">Code</span>;
+      case 'weather':
+        return <span className="text-gray-600">Globe</span>;
+      case 'httpbin':
+        return <span className="text-gray-600">Zap</span>;
+      default:
+        return <span className="text-gray-600">Code</span>;
     }
   };
 
   return (
-    <div className="w-64 bg-dark-800 border-l border-dark-600 p-4">
-      <div className="mb-4">
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search tools..." 
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Available Tools</h2>
+        
+        {/* Search */}
+        <div className="relative mb-4">
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400">🔍</span>
+          <input
+            type="text"
+            placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex flex-wrap gap-2">
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                selectedCategory === category
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {getCategoryIcon(category)}
+              {category === 'all' ? 'All' : category}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* API Tools */}
-      <div className="space-y-3">
-        {filteredTools.map((tool, index) => (
-          <div key={index} className="bg-dark-700 rounded-lg p-3 border border-dark-600">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`w-2 h-2 ${getStatusColor(tool.status)} rounded-full`}></div>
-              <span className="text-sm font-medium">{tool.name}</span>
+      {/* Tools List */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-4">
+          {filteredTools.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              <span className="w-8 h-8 mx-auto mb-2 text-gray-300">🔍</span>
+              <p className="text-sm">No tools found</p>
+              <p className="text-xs text-gray-400">Try adjusting your search or category filter</p>
             </div>
-            <p className="text-xs text-gray-400 mb-2">{tool.endpoints} endpoints available</p>
-            <div className="space-y-1">
-              {tool.methods.map((method, methodIndex) => (
-                <div key={methodIndex} className={`text-xs ${method.color}`}>
-                  {method.method} {method.path}
+          ) : (
+            <div className="space-y-3">
+              {filteredTools.map((tool) => (
+                <div
+                  key={tool.id}
+                  className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-medium text-gray-900 text-sm">{tool.name}</h3>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(tool.method)}`}>
+                      {tool.method}
+                    </span>
+                  </div>
+                  
+                  <p className="text-xs text-gray-600 mb-2">{tool.description}</p>
+                  
+                  <div className="text-xs text-gray-500 font-mono bg-gray-50 p-2 rounded">
+                    {tool.path}
+                  </div>
+                  
+                  {/* The inputSchema property is removed from the Tool interface, so this block is removed */}
                 </div>
               ))}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-200">
+        <div className="text-xs text-gray-500 text-center">
+          <p>{filteredTools.length} tool{filteredTools.length !== 1 ? 's' : ''} available</p>
+          <p className="mt-1">Powered by OpenAPI & ChromaDB</p>
+        </div>
       </div>
     </div>
   );

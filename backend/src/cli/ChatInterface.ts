@@ -128,7 +128,38 @@ class ChatInterface {
         if (response.toolMatch) {
             const confidence = response.toolMatch.confidence;
             const confidenceColor = confidence > 0.8 ? chalk.green : confidence > 0.5 ? chalk.yellow : chalk.red;
-            console.log(chalk.gray(`\nTool: ${response.toolMatch.tool.name} (confidence: ${confidenceColor(confidence.toFixed(2))})`));
+            
+            console.log(chalk.gray(`\n🔧 Tool Detected: ${chalk.cyan(response.toolMatch.tool.name)}`));
+            console.log(chalk.gray(`📊 Confidence: ${confidenceColor(confidence.toFixed(2))}`));
+            console.log(chalk.gray(`📝 Description: ${response.toolMatch.tool.description}`));
+            console.log(chalk.gray(`🌐 Method: ${chalk.blue(response.toolMatch.tool.endpoint.method)} ${chalk.gray(response.toolMatch.tool.endpoint.path)}`));
+            
+            if (response.toolMatch.parameters && Object.keys(response.toolMatch.parameters).length > 0) {
+                console.log(chalk.gray(`📋 Parameters:`));
+                Object.entries(response.toolMatch.parameters).forEach(([key, value]) => {
+                    console.log(chalk.gray(`   ${chalk.cyan(key)}: ${chalk.yellow(value)}`));
+                });
+            }
+            
+            if (response.needsClarification && response.clarificationRequest) {
+                console.log(chalk.yellow(`\n❓ Missing Information:`));
+                if (response.clarificationRequest.missingFields && response.clarificationRequest.missingFields.length > 0) {
+                    const requiredFields = response.clarificationRequest.missingFields.filter(f => f.type === 'required');
+                    const optionalFields = response.clarificationRequest.missingFields.filter(f => f.type === 'optional');
+                    
+                    if (requiredFields.length > 0) {
+                        console.log(chalk.red(`   Required: ${requiredFields.map(f => f.name).join(', ')}`));
+                    }
+                    if (optionalFields.length > 0) {
+                        console.log(chalk.blue(`   Optional: ${optionalFields.map(f => f.name).join(', ')}`));
+                    }
+                }
+                console.log(chalk.gray(`\n💡 Please provide the missing information or say "execute" to proceed with current parameters.`));
+            }
+        }
+        
+        if (response.needsClarification) {
+            console.log(chalk.blue(`\n💬 Waiting for your input...`));
         }
     }
 
@@ -173,6 +204,13 @@ class ChatInterface {
 
     private async startChat() {
         console.log(chalk.blue('\n-> Chat started! Type your request or "exit" to quit.\n'));
+        console.log(chalk.gray('💡 How it works:'));
+        console.log(chalk.gray('   1. I\'ll detect what tool you need from your message'));
+        console.log(chalk.gray('   2. Extract any parameters you provide'));
+        console.log(chalk.gray('   3. Ask for missing required information'));
+        console.log(chalk.gray('   4. Execute the API call and show results'));
+        console.log(chalk.gray('   5. You can say "execute" to proceed with current parameters'));
+        console.log(chalk.gray('   6. Say "cancel" to start over\n'));
         
         while (true) {
             try {
@@ -196,6 +234,8 @@ class ChatInterface {
                 if (!this.currentConversationId) {
                     this.currentConversationId = this.chatEngine.startConversation();
                 }
+                
+                console.log(chalk.gray('\n🤖 Processing your request...'));
                 const response = await this.chatEngine.processMessage(this.currentConversationId, message);
                 
                 console.log(chalk.gray('\n🤖 Assistant:'));

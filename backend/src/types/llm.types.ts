@@ -14,7 +14,7 @@ export interface LLMResponse {
 
 // LLM Configuration Types
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic';
+  provider: 'openai';
   model: string;
   apiKey: string;
   temperature?: number;

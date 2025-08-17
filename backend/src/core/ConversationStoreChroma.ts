@@ -43,8 +43,8 @@ export class ConversationStoreChroma {
             metadata: {
               startTime: new Date(ce.metadata.startTime),
               lastActivity: new Date(ce.metadata.lastActivity),
-              userPreferences: ce.metadata.userPreferences,
-              extractedInfo: ce.metadata.extractedInfo
+              userPreferences: ce.metadata.userPreferences ? JSON.parse(ce.metadata.userPreferences) : undefined,
+              extractedInfo: ce.metadata.extractedInfo ? JSON.parse(ce.metadata.extractedInfo) : {}
             }
           };
         
@@ -263,7 +263,14 @@ export class ConversationStoreChroma {
     }
   }
 
-  async listConversations(): Promise<Array<{ id: string; lastActivity: Date; messageCount: number }>> {
+  async listConversations(): Promise<Array<{ 
+    id: string; 
+    title: string;
+    lastMessage: string;
+    lastActivity: Date; 
+    messageCount: number;
+    startTime: Date;
+  }>> {
     if (!this.isInitialized) {
       throw new Error('ConversationStore not initialized');
     }
@@ -273,8 +280,11 @@ export class ConversationStoreChroma {
       
       return conversationEmbeddings.map(ce => ({
         id: ce.conversationId,
+        title: ce.metadata.title || 'New Conversation',
+        lastMessage: ce.metadata.lastMessage || '',
         lastActivity: new Date(ce.metadata.lastActivity),
-        messageCount: ce.metadata.messageCount
+        messageCount: ce.metadata.messageCount,
+        startTime: new Date(ce.metadata.startTime)
       })).sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
     } catch (error) {
       console.error('Failed to list conversations:', error);
@@ -343,8 +353,8 @@ export class ConversationStoreChroma {
         metadata: {
           startTime: new Date(ce.metadata.startTime),
           lastActivity: new Date(ce.metadata.lastActivity),
-          userPreferences: ce.metadata.userPreferences,
-          extractedInfo: ce.metadata.extractedInfo
+          userPreferences: ce.metadata.userPreferences ? JSON.parse(ce.metadata.userPreferences) : undefined,
+          extractedInfo: ce.metadata.extractedInfo ? JSON.parse(ce.metadata.extractedInfo) : {}
         }
       }));
     } catch (error) {

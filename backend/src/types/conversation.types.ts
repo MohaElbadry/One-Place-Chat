@@ -11,6 +11,9 @@ export interface ConversationContext {
   metadata: {
     startTime: Date;
     lastActivity: Date;
+    title?: string;
+    lastMessage?: string;
+    messageCount?: number;
     userPreferences?: Record<string, any>;
     extractedInfo?: Record<string, any>;
   };

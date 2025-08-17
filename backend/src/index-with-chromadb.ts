@@ -10,12 +10,13 @@
  * 4. Provide semantic search capabilities
  */
 
+import 'dotenv/config';
 import { Command } from 'commander';
 import { OpenApiToolParser } from './parsers/OpenApiToolParser.js';
 import { ChromaClient } from 'chromadb';
 import OpenAI from 'openai';
-import { readFileSync, existsSync } from 'fs';
-import { dirname } from 'path';
+import { readFileSync, existsSync, promises as fs } from 'fs';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,7 +72,10 @@ async function generateToolsWithChromaDB(
   if (storeInChromaDB) {
     try {
       openai = new OpenAI({ apiKey: openaiKey });
-      chromaClient = new ChromaClient({ path: 'http://localhost:8000' });
+      chromaClient = new ChromaClient({ 
+        host: 'localhost',
+        port: 8000 
+      });
       
       // Test ChromaDB connection
       await chromaClient.heartbeat();
@@ -119,6 +123,13 @@ async function generateToolsWithChromaDB(
           generatedAt: new Date().toISOString()
         }
       });
+
+      // Clear existing tools to prevent duplicates
+      console.log('🧹 Clearing existing tools to prevent duplicates...');
+      await toolsCollection.delete({
+        where: { source: specPath }
+      });
+      console.log('✅ Existing tools cleared');
 
       // Generate embeddings for each tool
       for (let i = 0; i < tools.length; i++) {
@@ -211,7 +222,10 @@ async function searchTools(query: string, limit: number = 5): Promise<void> {
 
   try {
     const openai = new OpenAI({ apiKey: openaiKey });
-    const chromaClient = new ChromaClient({ path: 'http://localhost:8000' });
+    const chromaClient = new ChromaClient({ 
+      host: 'localhost',
+      port: 8000 
+    });
     
     // Test connection
     await chromaClient.heartbeat();
@@ -268,7 +282,10 @@ async function searchTools(query: string, limit: number = 5): Promise<void> {
 
 async function listChromaDBCollections(): Promise<void> {
   try {
-    const chromaClient = new ChromaClient({ path: 'http://localhost:8000' });
+    const chromaClient = new ChromaClient({ 
+      host: 'localhost',
+      port: 8000 
+    });
     await chromaClient.heartbeat();
     
     const collections = await chromaClient.listCollections();
