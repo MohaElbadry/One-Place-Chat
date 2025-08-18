@@ -262,6 +262,7 @@ router.get('/stats/overview', ErrorHandler.asyncHandler(async (req, res) => {
 router.post('/chat', ErrorHandler.asyncHandler(async (req, res) => {
   const { message, conversationId, userId = 'default-user' } = req.body;
   
+
   if (!message || typeof message !== 'string') {
     return res.status(400).json({
       success: false,
@@ -335,8 +336,8 @@ router.post('/chat', ErrorHandler.asyncHandler(async (req, res) => {
   // Add user message to conversation
   conversationStore.addMessage(currentConversationId, 'user', message);
   
-  // Use the full ConversationalEngine to process the message (same as CLI)
-  const response = await chatEngine.processMessage(currentConversationId, message);
+  // Use the full ConversationalEngine to process the message (user and assistant messages handled by API route)
+  const response = await chatEngine.processMessage(currentConversationId, message, false, false);
   
   // Add assistant response to conversation
   conversationStore.addMessage(currentConversationId, 'assistant', response.message);

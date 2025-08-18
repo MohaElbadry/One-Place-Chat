@@ -183,7 +183,7 @@ async function generateToolsWithChromaDB(
           metadatas: toolMetadatas,
           documents: toolDocuments
         });
-        console.log('✅ Tools stored in ChromaDB successfully');
+        console.log('Tools stored in ChromaDB successfully');
         
         // Get collection stats
         const stats = await toolsCollection.count();

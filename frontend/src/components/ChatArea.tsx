@@ -77,6 +77,8 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     const userMessage = inputValue.trim();
     setInputValue('');
     setIsLoading(true);
+    
+
 
     // Add user message to UI immediately
     const newUserMessage: Message = {
@@ -205,14 +207,14 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     return { content: truncatedContent, isTruncated: true };
   }, [isLongMessage, expandedMessages]);
 
-  // Simplified tool info rendering - just show "Tool Detected"
+  // Tool info as a styled component - rendered separately from Markdown
   const renderToolInfo = useCallback((toolMatch: any) => {
     if (!toolMatch) return null;
 
     return (
       <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
         <div className="text-sm font-medium text-blue-800">
-          🔧 **Tool Detected:** {toolMatch.tool.name}
+          <div className='font-black inline'>Tool Detected : </div> {toolMatch.tool.name}
         </div>
       </div>
     );
@@ -278,6 +280,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
         </code>
       );
     },
+
     p: ({ children }: any) => <p className="mb-3 last:mb-0 break-words">{children}</p>,
     h1: ({ children }: any) => <h1 className="text-xl font-bold mb-3 text-gray-900 break-words">{children}</h1>,
     h2: ({ children }: any) => <h2 className="text-lg font-bold mb-2 text-gray-900 break-words">{children}</h2>,
@@ -306,6 +309,9 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       const isAssistant = message.role === 'assistant';
       const { content: displayContent, isTruncated } = truncateMessage(message.content, message.id);
       
+      // Use original message content without tool info
+      const fullContent = displayContent;
+      
       return (
         <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
           <div className={`max-w-[80%] min-w-0 ${isUser ? 'order-2' : 'order-1'}`}>
@@ -329,12 +335,12 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
                     <ReactMarkdown 
                       components={markdownComponents}
                     >
-                      {displayContent}
+                      {fullContent}
                     </ReactMarkdown>
                   </div>
                 ) : (
                   <div className="whitespace-pre-wrap break-words overflow-hidden">
-                    {displayContent}
+                    {fullContent}
                   </div>
                 )}
               </div>
@@ -372,7 +378,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       {/* Header */}
       <div className="flex-shrink-0 p-4 bg-white border-b shadow-sm">
         <h2 className="text-lg font-semibold text-gray-800">
-          {currentConversationId ? 'Chat' : 'New Conversation'}
+          {currentConversationId ? 'Conversation' : 'New Conversation'}
         </h2>
         {currentConversationId && (
           <p className="text-sm text-gray-600 mt-1">

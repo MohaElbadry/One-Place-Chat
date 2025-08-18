@@ -10,7 +10,7 @@ dotenv.config();
 export const appConfig = {
   // Conversational Engine Configuration
   conversational: {
-    minConfidenceThreshold: parseFloat(process.env.MIN_CONFIDENCE_THRESHOLD || '0.6'),
+    minConfidenceThreshold: parseFloat(process.env.MIN_CONFIDENCE_THRESHOLD || '0.55'),
     conversationTimeoutMs: parseInt(process.env.CONVERSATION_TIMEOUT_MS || '1800000'), // 30 minutes
     cleanupIntervalMs: parseInt(process.env.CLEANUP_INTERVAL_MS || '300000'), // 5 minutes
     maxRetries: parseInt(process.env.MAX_RETRIES || '3'),

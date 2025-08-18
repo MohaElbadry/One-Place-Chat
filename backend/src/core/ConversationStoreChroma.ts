@@ -125,6 +125,8 @@ export class ConversationStoreChroma {
       throw new Error(`Conversation ${conversationId} not found`);
     }
 
+
+
     const message: ConversationMessage = {
       id: uuidv4(),
       role,

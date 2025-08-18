@@ -180,9 +180,17 @@ export class ConversationalEngine {
    * - Validation of required fields
    * - API execution when all requirements are filled
    * - Clarification requests when information is missing
+   * 
+   * @param conversationId - The conversation ID
+   * @param userInput - The user's message
+   * @param addUserMessage - Whether to add the user message to the conversation store (default: true for CLI compatibility)
+   * @param addAssistantMessage - Whether to add the assistant message to the conversation store (default: true for CLI compatibility)
    */
-  async processMessage(conversationId: string, userInput: string): Promise<EnhancedChatResponse> {
-    this.conversationStore.addMessage(conversationId, 'user', userInput);
+  async processMessage(conversationId: string, userInput: string, addUserMessage: boolean = true, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
+    // Add user message only if requested (CLI calls with default true, API calls with false)
+    if (addUserMessage) {
+      this.conversationStore.addMessage(conversationId, 'user', userInput);
+    }
 
     const state = this.conversationStates.get(conversationId);
     if (!state) {
@@ -192,13 +200,13 @@ export class ConversationalEngine {
 
     // If we're in the middle of collecting parameters, handle that first
     if (state.currentTool && (state.missingRequiredFields.length > 0 || state.suggestedOptionalFields.length > 0)) {
-      return await this.handleParameterCollection(conversationId, userInput, state);
+      return await this.handleParameterCollection(conversationId, userInput, state, addAssistantMessage);
     }
-    return await this.processNewRequest(conversationId, userInput, state);
+    return await this.processNewRequest(conversationId, userInput, state, addAssistantMessage);
   }
 
   // Processes a new user request by finding the best matching tool and extracting parameters
-  private async processNewRequest(conversationId: string, userInput: string, state: ConversationState): Promise<EnhancedChatResponse> {
+  private async processNewRequest(conversationId: string, userInput: string, state: ConversationState, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
     const toolMatch = await this.toolMatcher.findBestMatch(userInput, this.tools);
     if (!toolMatch || toolMatch.confidence < this.MIN_CONFIDENCE_THRESHOLD) {
       const response: EnhancedChatResponse = {
@@ -207,7 +215,9 @@ export class ConversationalEngine {
         conversationId
       };
 
-      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      if (addAssistantMessage) {
+        this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      }
       return response;
     }
 
@@ -240,31 +250,33 @@ export class ConversationalEngine {
         conversationId
       };
 
-      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      if (addAssistantMessage) {
+        this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      }
       return response;
     }
 
     // We have all required fields with valid values, execute
-    return await this.executeTool(conversationId, tool, parameters);
+    return await this.executeTool(conversationId, tool, parameters, addAssistantMessage);
   }
 
   /**
    * Handles parameter collection when the user is providing additional information
    * This method manages the back-and-forth conversation to gather required parameters
    */
-  private async handleParameterCollection(conversationId: string, userInput: string, state: ConversationState): Promise<EnhancedChatResponse> {
+  private async handleParameterCollection(conversationId: string, userInput: string, state: ConversationState, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
     if (!state.currentTool) {
       throw new Error('No current tool in state');
     }
 
     // Check for cancellation intent
     if (this.isCancellationIntent(userInput)) {
-      return this.handleCancellation(conversationId, state);
+      return this.handleCancellation(conversationId, state, addAssistantMessage);
     }
 
     // Check if user wants to execute with current parameters
     if (this.isExecutionIntent(userInput) && state.missingRequiredFields.length === 0) {
-      return await this.executeTool(conversationId, state.currentTool, state.collectedParameters);
+      return await this.executeTool(conversationId, state.currentTool, state.collectedParameters, addAssistantMessage);
     }
 
     // Extract new parameters from user input
@@ -281,7 +293,7 @@ export class ConversationalEngine {
 
     if (analysis.missingRequiredFields.length === 0 && !this.hasPlaceholderValues(updatedParameters)) {
       // All required fields collected with valid values, execute
-      return await this.executeTool(conversationId, state.currentTool, updatedParameters);
+      return await this.executeTool(conversationId, state.currentTool, updatedParameters, addAssistantMessage);
     }
 
     // Still missing required fields or have placeholder values
@@ -313,7 +325,7 @@ export class ConversationalEngine {
   }
 
   // Handles cancellation by resetting the conversation state
-  private handleCancellation(conversationId: string, state: ConversationState): EnhancedChatResponse {
+  private handleCancellation(conversationId: string, state: ConversationState, addAssistantMessage: boolean = true): EnhancedChatResponse {
     // Reset state
     state.currentTool = undefined;
     state.collectedParameters = {};
@@ -326,7 +338,9 @@ export class ConversationalEngine {
       conversationId
     };
 
-    this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+    if (addAssistantMessage) {
+      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+    }
     return response;
   }
 
@@ -450,11 +464,11 @@ export class ConversationalEngine {
   }
 
   // Suggests optional fields when all required fields are complete
-  private async suggestOptionalFields(tool: MCPTool, analysis: any, collectedParameters: Record<string, any>): Promise<EnhancedChatResponse> {
+  private async suggestOptionalFields(tool: MCPTool, analysis: any, collectedParameters: Record<string, any>, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
     const { suggestedOptionalFields } = analysis;
 
     if (suggestedOptionalFields.length === 0) {
-      return await this.executeTool('', tool, collectedParameters);
+      return await this.executeTool('', tool, collectedParameters, addAssistantMessage);
     }
 
     const message = `I have all the required information! Would you like to add any optional fields?\n\n💡 **Optional fields you might want to add:**\n` +
@@ -711,7 +725,7 @@ Extracted parameters:`;
   }
 
   // Executes a tool by generating and running a cURL command
-  private async executeTool(conversationId: string, tool: MCPTool, parameters: Record<string, any>): Promise<EnhancedChatResponse> {
+  private async executeTool(conversationId: string, tool: MCPTool, parameters: Record<string, any>, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
     try {
       const curlCommand = CurlCommandGenerator.generateCurlCommand(tool, parameters);
       const executionResult = await this.executor.executeCurl(curlCommand);
@@ -733,7 +747,7 @@ Extracted parameters:`;
           resultMessage += `**Error Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
         }
       } else {
-        resultMessage = `✅ **Successfully executed ${tool.name}!**\n\n`;
+        resultMessage = `**Successfully executed ${tool.name}!**\n\n`;
         resultMessage += `**cURL Command:**\n\`\`\`bash\n${curlCommand}\n\`\`\`\n\n`;
 
         try {
@@ -743,7 +757,7 @@ Extracted parameters:`;
           resultMessage += `**Response:**\n\`\`\`\n${executionResult}\n\`\`\``;
         }
 
-        resultMessage += `\n\nIs there anything else you'd like to do? 🎯`;
+        resultMessage += `\n\nIs there anything else you'd like to do? `;
       }
 
       // Reset conversation state after execution
@@ -766,7 +780,9 @@ Extracted parameters:`;
         conversationId
       };
 
-      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      if (addAssistantMessage) {
+        this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      }
       return response;
     } catch (error: any) {
       const errorMessage = `❌ **Execution Error in ${tool.name}:** ${error.message}\n\nPlease check your parameters and try again.`;
@@ -786,7 +802,9 @@ Extracted parameters:`;
         conversationId
       };
 
-      this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      if (addAssistantMessage) {
+        this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      }
       return response;
     }
   }
