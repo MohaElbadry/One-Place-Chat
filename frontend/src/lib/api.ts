@@ -1,5 +1,7 @@
+import { config } from '@/config/environment';
+
 // API service for connecting to the Node.js backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = config.api.baseUrl;
 
 export interface Conversation {
   id: string;
@@ -98,27 +100,50 @@ export interface HealthStatus {
 
 class ApiClient {
   private baseUrl: string;
+  private retryAttempts: number;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    this.retryAttempts = config.api.retryAttempts;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, attempt: number = 1): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.api.timeout);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        signal: controller.signal,
+        ...options,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API request failed: ${response.statusText}`);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`API request failed for ${endpoint} (attempt ${attempt}):`, error);
+      
+      // Retry logic for network errors
+      if (attempt < this.retryAttempts && error instanceof Error && 
+          (error.name === 'AbortError' || error.message.includes('fetch'))) {
+        console.log(`Retrying request for ${endpoint} (attempt ${attempt + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        return this.request<T>(endpoint, options, attempt + 1);
+      }
+      
+      throw error;
     }
-
-    return response.json();
   }
 
   // Health check methods

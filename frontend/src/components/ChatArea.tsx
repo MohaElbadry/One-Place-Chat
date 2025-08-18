@@ -1,10 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { apiClient } from '@/lib/api';
+import { getApiUrl } from '@/config/environment';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   toolMatch?: any;
@@ -22,6 +27,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversation when selectedConversationId changes
@@ -40,25 +46,32 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     scrollToBottom();
   }, [messages]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const loadConversation = async (conversationId: string) => {
+  const loadConversation = useCallback(async (conversationId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/conversations/${conversationId}`);
-      const result = await response.json();
+      const result = await apiClient.getConversation(conversationId);
       
-      if (result.success) {
+      if (result) {
         setCurrentConversationId(conversationId);
-        setMessages(result.data.messages || []);
+        setMessages(result.messages || []);
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
+      // Add error message to UI
+      const errorMessage: Message = {
+        id: Date.now().toString() + '-error',
+        role: 'assistant',
+        content: '**Error:** Failed to load conversation. Please try again.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages([errorMessage]);
     }
-  };
+  }, []);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!inputValue.trim() || isLoading) return;
 
     const userMessage = inputValue.trim();
@@ -86,7 +99,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
         payload.conversationId = currentConversationId;
       }
 
-      const response = await fetch('http://localhost:3001/api/conversations/chat', {
+      const response = await fetch(`${getApiUrl()}/conversations/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +137,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
         const errorMessage: Message = {
           id: Date.now().toString() + '-error',
           role: 'assistant',
-          content: `Error: ${result.error || 'Failed to process message'}`,
+          content: `**Error:** ${result.error || 'Failed to process message'}`,
           timestamp: new Date().toISOString()
         };
         setMessages(prev => [...prev, errorMessage]);
@@ -134,145 +147,270 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       const errorMessage: Message = {
         id: Date.now().toString() + '-error',
         role: 'assistant',
-        content: 'Error: Failed to connect to server',
+        content: '**Error:** Failed to connect to server',
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [inputValue, isLoading, currentConversationId, onConversationUpdate]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [handleSendMessage]);
 
-  const getRoleColor = (role: string) => {
-    return role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800';
-  };
+  const toggleMessageExpansion = useCallback((messageId: string) => {
+    setExpandedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  }, []);
 
-  const getRoleLabel = (role: string) => {
-    return role === 'user' ? 'You' : 'Assistant';
-  };
-
-  const formatMessageTime = (timestamp: string) => {
+  const formatMessageTime = useMemo(() => (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
-  };
+  }, []);
 
-  const renderToolInfo = (toolMatch: any) => {
+  // Check if message content is long (more than 30 lines)
+  const isLongMessage = useCallback((content: string) => {
+    const lines = content.split('\n');
+    return lines.length > 20;
+  }, []);
+
+  // Truncate message content for display
+  const truncateMessage = useCallback((content: string, messageId: string) => {
+    if (!isLongMessage(content)) {
+      return { content, isTruncated: false };
+    }
+
+    const lines = content.split('\n');
+    const isExpanded = expandedMessages.has(messageId);
+    
+    if (isExpanded) {
+      return { content, isTruncated: false };
+    }
+  // Check if message content is long (more than 30 lines)
+    const truncatedContent = lines.slice(0, 20).join('\n') + '\n...';
+    return { content: truncatedContent, isTruncated: true };
+  }, [isLongMessage, expandedMessages]);
+
+  // Simplified tool info rendering - just show "Tool Detected"
+  const renderToolInfo = useCallback((toolMatch: any) => {
     if (!toolMatch) return null;
 
     return (
-      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="text-sm text-blue-800">
-          <div className="font-semibold">🔧 Tool Detected: {toolMatch.tool.name}</div>
-          <div className="text-xs text-blue-600 mt-1">
-            📊 Confidence: {(toolMatch.confidence * 100).toFixed(1)}%
-          </div>
-          <div className="text-xs text-blue-600 mt-1">
-            📝 {toolMatch.tool.description}
-          </div>
-          <div className="text-xs text-blue-600 mt-1">
-            🌐 {toolMatch.tool.endpoint.method} {toolMatch.tool.endpoint.path}
-          </div>
+      <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+        <div className="text-sm font-medium text-blue-800">
+          🔧 **Tool Detected:** {toolMatch.tool.name}
         </div>
       </div>
     );
-  };
+  }, []);
 
-  const renderClarificationRequest = (clarificationRequest: any) => {
+  // Improved clarification rendering
+  const renderClarificationRequest = useCallback((clarificationRequest: any) => {
     if (!clarificationRequest) return null;
 
     return (
-      <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="text-sm text-yellow-800">
-          <div className="font-semibold">❓ {clarificationRequest.message}</div>
+      <div className="mt-3 p-3 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+        <div className="text-sm text-amber-800">
+          <div className="font-medium">❓ {clarificationRequest.message}</div>
           {clarificationRequest.missingFields && (
-            <div className="mt-2">
-              <div className="text-xs font-medium">Missing Information:</div>
-              {clarificationRequest.missingFields.map((field: any, index: number) => (
-                <div key={index} className="text-xs mt-1">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    field.type === 'required' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {field.type === 'required' ? 'Required' : 'Optional'}: {field.name}
+            <div className="mt-2 text-xs">
+              <span className="font-medium">Missing information:</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {clarificationRequest.missingFields.map((field: any, index: number) => (
+                  <span 
+                    key={index} 
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      field.type === 'required' 
+                        ? 'bg-red-100 text-red-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {field.name}
                   </span>
-                  {field.description && (
-                    <span className="text-gray-600 ml-2">- {field.description}</span>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
       </div>
     );
-  };
+  }, []);
+
+  // Custom components for ReactMarkdown
+  const markdownComponents = useMemo(() => ({
+    code({node, inline, className, children, ...props}: any) {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={oneDark}
+          language={match[1]}
+          PreTag="div"
+          className="rounded-lg text-sm !overflow-x-auto !max-w-full"
+          wrapLines={true}
+          wrapLongLines={true}
+          customStyle={{
+            maxWidth: '100%',
+            overflowX: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all'
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono break-all" {...props}>
+          {children}
+        </code>
+      );
+    },
+    p: ({ children }: any) => <p className="mb-3 last:mb-0 break-words">{children}</p>,
+    h1: ({ children }: any) => <h1 className="text-xl font-bold mb-3 text-gray-900 break-words">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-lg font-bold mb-2 text-gray-900 break-words">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-md font-semibold mb-2 text-gray-900 break-words">{children}</h3>,
+    ul: ({ children }: any) => <ul className="list-disc ml-6 mb-3 space-y-1 break-words">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal ml-6 mb-3 space-y-1 break-words">{children}</ol>,
+    li: ({ children }: any) => <li className="text-gray-800 break-words">{children}</li>,
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-4 border-gray-300 pl-4 my-3 italic text-gray-700 break-words">
+        {children}
+      </blockquote>
+    ),
+    pre: ({ children }: any) => (
+      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto max-w-full whitespace-pre-wrap break-all text-sm mb-3">
+        {children}
+      </pre>
+    ),
+    strong: ({ children }: any) => <strong className="font-semibold text-gray-900 break-words">{children}</strong>,
+    em: ({ children }: any) => <em className="italic text-gray-800 break-words">{children}</em>,
+  }), []);
+
+  // Memoized message rendering with proper left/right alignment
+  const renderedMessages = useMemo(() => {
+    return messages.map((message) => {
+      const isUser = message.role === 'user';
+      const isAssistant = message.role === 'assistant';
+      const { content: displayContent, isTruncated } = truncateMessage(message.content, message.id);
+      
+      return (
+        <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+          <div className={`max-w-[80%] min-w-0 ${isUser ? 'order-2' : 'order-1'}`}>
+            {/* Message bubble */}
+            <div className={`rounded-2xl px-4 py-3 ${
+              isUser 
+                ? 'bg-blue-500 text-white rounded-br-sm' 
+                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
+            }`}>
+              {/* Timestamp and role */}
+              <div className={`text-xs mb-2 ${
+                isUser ? 'text-blue-100' : 'text-gray-500'
+              }`}>
+                {isUser ? 'You' : 'Assistant'} • {formatMessageTime(message.timestamp)}
+              </div>
+              
+              {/* Message content */}
+              <div className={`${isUser ? 'text-white' : 'text-gray-800'} break-words overflow-hidden`}>
+                {isAssistant ? (
+                  <div className="prose prose-sm max-w-none overflow-hidden">
+                    <ReactMarkdown 
+                      components={markdownComponents}
+                    >
+                      {displayContent}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap break-words overflow-hidden">
+                    {displayContent}
+                  </div>
+                )}
+              </div>
+
+              {/* See more/less button for long messages */}
+              {isLongMessage(message.content) && (
+                <button
+                  onClick={() => toggleMessageExpansion(message.id)}
+                  className={`mt-2 text-xs font-medium transition-colors ${
+                    isUser 
+                      ? 'text-blue-100 hover:text-white' 
+                      : 'text-blue-600 hover:text-blue-800'
+                  }`}
+                >
+                  {expandedMessages.has(message.id) ? 'See less' : 'See more'}
+                </button>
+              )}
+            </div>
+            
+            {/* Tool information and clarification requests */}
+            {isAssistant && (
+              <div className="mt-2">
+                {message.toolMatch && renderToolInfo(message.toolMatch)}
+                {message.clarificationRequest && renderClarificationRequest(message.clarificationRequest)}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    });
+  }, [messages, formatMessageTime, markdownComponents, renderToolInfo, renderClarificationRequest, truncateMessage, toggleMessageExpansion, expandedMessages, isLongMessage]);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-gray-50">
+      <div className="flex-shrink-0 p-4 bg-white border-b shadow-sm">
         <h2 className="text-lg font-semibold text-gray-800">
           {currentConversationId ? 'Chat' : 'New Conversation'}
         </h2>
         {currentConversationId && (
           <p className="text-sm text-gray-600 mt-1">
-            Conversation ID: {currentConversationId.substring(0, 8)}...
+            ID: {currentConversationId.substring(0, 8)}...
           </p>
         )}
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {messages.length === 0 && !currentConversationId ? (
-          <div className="text-center text-gray-500 mt-8">
-            <div className="text-lg font-medium mb-2">Start a new conversation</div>
-            <div className="text-sm">Type your message below to begin chatting</div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-gray-500">
+              <div className="text-4xl mb-4">💬</div>
+              <div className="text-lg font-medium mb-2">Start a new conversation</div>
+              <div className="text-sm text-gray-400">Type your message below to begin chatting</div>
+            </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <div key={message.id} className="flex gap-3">
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${getRoleColor(message.role)}`}>
-                {getRoleLabel(message.role).charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-gray-900">
-                    {getRoleLabel(message.role)}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {formatMessageTime(message.timestamp)}
-                  </span>
-                </div>
-                <div className="text-gray-800 whitespace-pre-wrap">
-                  {message.content}
-                </div>
-                
-                {/* Render tool information if available */}
-                {message.toolMatch && renderToolInfo(message.toolMatch)}
-                
-                {/* Render clarification request if needed */}
-                {message.clarificationRequest && renderClarificationRequest(message.clarificationRequest)}
-              </div>
-            </div>
-          ))
+          <div className="space-y-1">
+            {renderedMessages}
+          </div>
         )}
         
         {/* Loading indicator */}
         {isLoading && (
-          <div className="flex gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <div className="w-4 h-4 animate-spin text-gray-600">⏳</div>
-            </div>
-            <div className="flex-1">
-              <div className="text-sm text-gray-500">Assistant is thinking...</div>
+          <div className="flex justify-start mb-4">
+            <div className="max-w-[80%]">
+              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  </div>
+                  <span className="text-sm">Assistant is thinking...</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -281,26 +419,47 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-4 border-t bg-gray-50">
-        <div className="flex gap-2">
+      <div className="flex-shrink-0 p-4 bg-white border-t">
+        <div className="flex gap-3 items-end">
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your message here..."
-            className="flex-1 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={2}
+            className="flex-1 p-3 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] max-h-32 text-gray-900 overflow-y-auto"
+            rows={1}
             disabled={isLoading}
+            style={{
+              resize: 'none',
+              overflow: 'hidden',
+              height: 'auto',
+              minHeight: '44px'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              const newHeight = Math.min(target.scrollHeight, 128);
+              target.style.height = newHeight + 'px';
+              
+              // Enable scrolling after 4 lines (approximately 88px)
+              if (newHeight > 88) {
+                target.style.overflowY = 'auto';
+              } else {
+                target.style.overflowY = 'hidden';
+              }
+            }}
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-3 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
             {isLoading ? (
-              <span className="animate-spin">⏳</span>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <span>📤</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
             )}
             Send
           </button>

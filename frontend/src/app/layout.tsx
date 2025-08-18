@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'One-Place-Chat',
@@ -17,7 +18,9 @@ export default function RootLayout({
         className="bg-dark-900 text-white font-sans overflow-hidden"
         suppressHydrationWarning={true}
       >
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

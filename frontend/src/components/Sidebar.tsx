@@ -82,10 +82,10 @@ export default function Sidebar({
               <div
                 key={conversation.id}
                 onClick={() => handleConversationClick(conversation.id)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 group ${
+                className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 group border ${
                   selectedConversationId === conversation.id
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50 border border-transparent'
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'hover:bg-gray-50 border-gray-200'
                 }`}
               >
                 <div className="flex items-start justify-between">

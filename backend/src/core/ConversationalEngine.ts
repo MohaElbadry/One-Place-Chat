@@ -3,8 +3,10 @@ import { MCPTool } from '../types/api.types.js';
 import { ChromaDBToolMatcher } from '../tools/ChromaDBToolMatcher.js';
 import { ChromaDBService } from '../database/ChromaDBService.js';
 import { CurlCommandExecutor } from '../tools/CurlCommandExecutor.js';
+import { CurlCommandGenerator } from '../tools/CurlCommandGenerator.js';
 import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
+import { appConfig } from '../config/app-config.js';
 import { EnhancedChatResponse, ConversationState } from '../types/conversation.types.js';
 
 /**
@@ -30,8 +32,9 @@ export class ConversationalEngine {
   private llm: LLMProvider;
   private tools: MCPTool[] = [];
   private conversationStates: Map<string, ConversationState> = new Map();
-  private readonly CONVERSATION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-  private readonly MIN_CONFIDENCE_THRESHOLD = 0.6; // Increased from 0.3
+  private readonly CONVERSATION_TIMEOUT = appConfig.conversational.conversationTimeoutMs;
+  private readonly MIN_CONFIDENCE_THRESHOLD = appConfig.conversational.minConfidenceThreshold;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
 
   constructor(modelName: string = 'gpt-4') {
@@ -44,7 +47,51 @@ export class ConversationalEngine {
 
     // Note: Conversation store will be initialized later via initializeConversationStore()
 
-    setInterval(() => this.cleanupStaleConversations(), 5 * 60 * 1000); // Every 5 minutes
+    // Start cleanup interval
+    this.startCleanupInterval();
+  }
+
+  /**
+   * Start the cleanup interval for stale conversations
+   */
+  private startCleanupInterval(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupStaleConversations();
+    }, appConfig.conversational.cleanupIntervalMs);
+  }
+
+  /**
+   * Clean up resources and stop intervals
+   */
+  async destroy(): Promise<void> {
+    try {
+      // Clear the cleanup interval
+      if (this.cleanupInterval) {
+        clearInterval(this.cleanupInterval);
+        this.cleanupInterval = null;
+      }
+
+      // Close conversation store
+      if (this.conversationStore) {
+        await this.conversationStore.close();
+      }
+
+      // Close tool matcher
+      if (this.toolMatcher) {
+        await this.toolMatcher.close();
+      }
+
+      // Clear conversation states
+      this.conversationStates.clear();
+
+      console.log('✅ ConversationalEngine destroyed successfully');
+    } catch (error) {
+      console.error('❌ Error destroying ConversationalEngine:', error);
+    }
   }
 
   /**
@@ -666,7 +713,7 @@ Extracted parameters:`;
   // Executes a tool by generating and running a cURL command
   private async executeTool(conversationId: string, tool: MCPTool, parameters: Record<string, any>): Promise<EnhancedChatResponse> {
     try {
-      const curlCommand = this.generateCurlCommand(tool, parameters);
+      const curlCommand = CurlCommandGenerator.generateCurlCommand(tool, parameters);
       const executionResult = await this.executor.executeCurl(curlCommand);
 
       // Check if the response indicates an error
@@ -757,78 +804,6 @@ Extracted parameters:`;
     }
   }
 
-  // Generates a cURL command for a tool with the given parameters
-  private generateCurlCommand(tool: MCPTool, params: Record<string, any>): string {
-    const { method, baseUrl, path } = tool.endpoint;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-
-    // Only include parameters defined in the tool's inputSchema
-    const allowedParams = tool.inputSchema?.properties ? Object.keys(tool.inputSchema.properties) : [];
-    const filteredParams: Record<string, any> = {};
-    for (const key of allowedParams) {
-      if (params[key] !== undefined) {
-        filteredParams[key] = params[key];
-      }
-    }
-
-    // Build the URL with path parameters
-    let url = `${baseUrl}${path}`;
-    const pathParams = path.match(/\{([^}]+)\}/g) || [];
-    // Process path parameters
-    const processedParams = { ...filteredParams };
-    pathParams.forEach(param => {
-      const paramName = param.slice(1, -1);
-      if (processedParams[paramName] !== undefined) {
-        url = url.replace(param, encodeURIComponent(String(processedParams[paramName])));
-        delete processedParams[paramName];
-      }
-    });
-
-    // Process query parameters and request body
-    let queryString = '';
-    let body = '';
-    const httpMethod = method.toUpperCase();
-    // For GET/DELETE, add remaining parameters to query string
-    if (["GET", "DELETE"].includes(httpMethod)) {
-      const queryParams = new URLSearchParams();
-      Object.entries(processedParams).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          queryParams.append(key, String(value));
-        }
-      });
-      queryString = queryParams.toString();
-    } else {
-      // For other methods, add remaining parameters to request body
-      const bodyParams: Record<string, any> = {};
-      Object.entries(processedParams).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          bodyParams[key] = value;
-        }
-      });
-      if (Object.keys(bodyParams).length > 0) {
-        body = JSON.stringify(bodyParams, null, 2);
-      }
-    }
-
-    // Add query string to URL if present
-    if (queryString) {
-      url += (url.includes('?') ? '&' : '?') + queryString;
-    }
-
-    // Build the curl command
-    let curlCommand = `curl -X ${httpMethod} "${url}" \
-      -H "Content-Type: application/json" \
-      -H "Accept: application/json"`;
-    if (body) {
-      curlCommand += ` \
-      -d '${body}'`;
-    }
-    return curlCommand;
-  }
-
   // list of all the tools + description
   private getAvailableOperationsSummary(): string {
     return this.tools.map(tool => `- ${tool.name}: ${tool.description || ''}`).join('\n');
@@ -836,15 +811,12 @@ Extracted parameters:`;
 
   // Checks if parameters contain placeholder values that should be replaced
   private hasPlaceholderValues(parameters: Record<string, any>): boolean {
-    return Object.values(parameters).some(value => this.isPlaceholderValue(value));
+    return CurlCommandGenerator.hasPlaceholderValues(parameters);
   }
 
   // Checks if a value is a placeholder that should be replaced
   private isPlaceholderValue(value: any): boolean {
-    if (typeof value === 'string') {
-      return value.trim().toLowerCase() === 'string' || value.trim() === '';
-    }
-    return value === undefined || value === null;
+    return CurlCommandGenerator.isPlaceholderValue(value);
   }
 
   // Saves a conversation to persistent storage

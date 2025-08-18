@@ -54,4 +54,106 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #5a5a5a;
   }
+
+  /* Markdown styling overrides */
+  .prose {
+    @apply text-inherit;
+  }
+  
+  .prose p {
+    @apply text-inherit mb-2 last:mb-0;
+  }
+  
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    @apply text-inherit font-semibold;
+  }
+  
+  .prose ul, .prose ol {
+    @apply text-inherit;
+  }
+  
+  .prose li {
+    @apply text-inherit;
+  }
+  
+  .prose blockquote {
+    @apply text-inherit border-l-4 border-gray-300 pl-4 my-3 italic;
+  }
+  
+  .prose code {
+    @apply text-inherit bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono;
+  }
+  
+  .prose pre {
+    @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto max-w-full;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+  
+  .prose strong {
+    @apply text-inherit font-semibold;
+  }
+  
+  .prose em {
+    @apply text-inherit italic;
+  }
+
+  /* Chat message animations */
+  .message-enter {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  
+  .message-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 200ms, transform 200ms;
+  }
+  
+  .message-exit {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .message-exit-active {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 200ms, transform 200ms;
+  }
+
+  /* Auto-resize textarea */
+  .auto-resize-textarea {
+    resize: none;
+    overflow: hidden;
+    min-height: 44px;
+    max-height: 128px;
+  }
+
+  /* Textarea placeholder styling */
+  textarea::placeholder {
+    color: #6b7280;
+    opacity: 1;
+  }
+
+  /* Code block styling improvements */
+  .prose pre code {
+    @apply bg-transparent text-inherit p-0;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Syntax highlighter improvements */
+  .prose div[class*="language-"] {
+    @apply max-w-full;
+    overflow-x: auto !important;
+  }
+
+  .prose div[class*="language-"] pre {
+    @apply m-0;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-wrap: break-word !important;
+  }
 }
