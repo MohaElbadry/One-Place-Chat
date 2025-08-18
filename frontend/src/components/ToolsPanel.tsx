@@ -98,7 +98,7 @@ export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
       </div>
 
       {/* Tools List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
         {filteredTools.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <span className="w-8 h-8 mx-auto mb-2 text-gray-300">🔧</span>

@@ -379,6 +379,194 @@ router.post('/chat', ErrorHandler.asyncHandler(async (req, res) => {
   
 }, 'processing chat message'));
 
+// POST /api/conversations/chat/stream - Process a message with streaming response using SSE
+router.post('/chat/stream', ErrorHandler.asyncHandler(async (req, res) => {
+  const { message, conversationId, userId = 'default-user', speed = 'normal' } = req.body;
+
+  console.log('🚀 Streaming chat request received:', { message, conversationId, userId, speed });
+
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing or invalid message',
+      message: 'Message is required and must be a string'
+    });
+  }
+  
+  await ensureInitialized();
+  
+  if (!chatEngine) {
+    throw new Error('Chat engine not initialized');
+  }
+  
+  let currentConversationId = conversationId;
+  let isNewConversation = false;
+  
+  // Handle conversation creation/loading
+  if (!currentConversationId) {
+    const conversation = conversationStore.createConversation(userId);
+    currentConversationId = conversation.id;
+    isNewConversation = true;
+    console.log(`Created new streaming conversation: ${currentConversationId}`);
+    
+    await chatEngine['initializeConversationStore']();
+    await chatEngine['conversationStore'].loadConversation(currentConversationId);
+    
+    if (!chatEngine['conversationStates'].has(currentConversationId)) {
+      chatEngine['conversationStates'].set(currentConversationId, {
+        currentTool: undefined,
+        collectedParameters: {},
+        missingRequiredFields: [],
+        suggestedOptionalFields: [],
+        conversationContext: [],
+        lastActivity: new Date()
+      });
+    }
+  } else {
+    const existingConversation = await conversationStore.loadConversation(currentConversationId);
+    if (!existingConversation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Conversation not found',
+        message: `Conversation with ID "${currentConversationId}" not found`
+      });
+    }
+    
+    await chatEngine['conversationStore'].loadConversation(currentConversationId);
+    
+    if (!chatEngine['conversationStates'].has(currentConversationId)) {
+      chatEngine['conversationStates'].set(currentConversationId, {
+        currentTool: undefined,
+        collectedParameters: {},
+        missingRequiredFields: [],
+        suggestedOptionalFields: [],
+        conversationContext: [],
+        lastActivity: new Date()
+      });
+    }
+  }
+  
+  // Add user message to conversation
+  conversationStore.addMessage(currentConversationId, 'user', message);
+  
+  // Set up SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+  
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({
+    type: 'connection',
+    conversationId: currentConversationId,
+    isNewConversation
+  })}\n\n`);
+  
+  try {
+    // Use the ConversationalEngine to process the message (same as regular chat endpoint)
+    console.log('🔄 Processing message with ConversationalEngine...');
+    const response = await chatEngine.processMessage(currentConversationId, message, false, false);
+    
+    console.log('✅ Response received:', {
+      messageLength: response.message.length,
+      hasToolMatch: !!response.toolMatch,
+      needsClarification: response.needsClarification,
+      hasExecutionResult: !!response.executionResult
+    });
+    
+    // Send tool information if available
+    if (response.toolMatch) {
+      console.log('🔧 Sending tool match:', response.toolMatch.tool?.name);
+      res.write(`data: ${JSON.stringify({
+        type: 'tool_match',
+        toolMatch: response.toolMatch,
+        conversationId: currentConversationId
+      })}\n\n`);
+    }
+    
+    // Send clarification request if needed
+    if (response.needsClarification && response.clarificationRequest) {
+      res.write(`data: ${JSON.stringify({
+        type: 'clarification',
+        clarificationRequest: response.clarificationRequest,
+        conversationId: currentConversationId
+      })}\n\n`);
+    }
+    
+    // Send execution result if available
+    if (response.executionResult) {
+      res.write(`data: ${JSON.stringify({
+        type: 'execution_result',
+        executionResult: response.executionResult,
+        conversationId: currentConversationId
+      })}\n\n`);
+    }
+    
+    // Stream the response content character by character for better UX
+    const responseText = response.message;
+    
+    // Create more natural streaming by varying chunk sizes
+    const words = responseText.split(' ');
+    let currentPosition = 0;
+    
+    for (const word of words) {
+      // Add space if not first word
+      if (currentPosition > 0) {
+        res.write(`data: ${JSON.stringify({
+          type: 'chunk',
+          content: ' ',
+          conversationId: currentConversationId
+        })}\n\n`);
+        currentPosition++;
+        await new Promise(resolve => setTimeout(resolve, speed === 'fast' ? 2 : speed === 'slow' ? 20 : 10)); // Configurable space delay
+      }
+      
+      // Stream word character by character
+      for (const char of word) {
+        res.write(`data: ${JSON.stringify({
+          type: 'chunk',
+          content: char,
+          conversationId: currentConversationId
+        })}\n\n`);
+        currentPosition++;
+        
+        // Vary delay based on character type for more natural typing (faster)
+        const baseDelay = speed === 'fast' ? 5 : speed === 'slow' ? 50 : 20; // Configurable base speed
+        const delay = char === '.' || char === '!' || char === '?' ? baseDelay * 3 : // Pause for punctuation
+                     char === ',' || char === ';' || char === ':' ? baseDelay * 2 :  // Pause for commas
+                     baseDelay; // Normal typing speed
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // Send completion message with full response
+    res.write(`data: ${JSON.stringify({
+      type: 'complete',
+      content: responseText,
+      conversationId: currentConversationId
+    })}\n\n`);
+    
+    // Add assistant response to conversation
+    conversationStore.addMessage(currentConversationId, 'assistant', responseText);
+    await conversationStore.saveConversation(currentConversationId);
+    
+  } catch (error) {
+    console.error('❌ Streaming error:', error);
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Failed to generate response',
+      conversationId: currentConversationId
+    })}\n\n`);
+  } finally {
+    console.log('🏁 Streaming completed for conversation:', currentConversationId);
+    res.end();
+  }
+  
+}, 'processing streaming chat message'));
+
 // Enhanced endpoint to update conversation title
 router.patch('/:id/title', ErrorHandler.asyncHandler(async (req, res) => {
   const { id } = req.params;

@@ -28,6 +28,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [streamingSpeed, setStreamingSpeed] = useState<'fast' | 'normal' | 'slow'>('fast');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversation when selectedConversationId changes
@@ -78,8 +79,6 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     setInputValue('');
     setIsLoading(true);
 
-
-
     // Add user message to UI immediately
     const newUserMessage: Message = {
       id: Date.now().toString(),
@@ -90,73 +89,101 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
 
     setMessages(prev => [...prev, newUserMessage]);
 
+    // Create a placeholder for the streaming assistant message
+    const assistantMessageId = Date.now().toString() + '-assistant';
+    const streamingAssistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, streamingAssistantMessage]);
+
     try {
-      // Prepare request payload
-      const payload: any = {
-        message: userMessage
-      };
-
-      // Add conversationId if we have one
-      if (currentConversationId) {
-        payload.conversationId = currentConversationId;
-      }
-
-      const response = await fetch(`${getApiUrl()}/conversations/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use the streaming API
+      await apiClient.streamChat(
+        userMessage,
+        currentConversationId || undefined,
+        undefined, // userId
+        streamingSpeed, // Use state-controlled speed
+        // onChunk - called for each piece of text
+        (chunk: string) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: msg.content + chunk }
+              : msg
+          ));
         },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Update conversation ID if this is a new conversation
-        if (result.data.isNewConversation) {
-          setCurrentConversationId(result.data.conversationId);
+        // onComplete - called when streaming is finished
+        (fullResponse: string) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: fullResponse }
+              : msg
+          ));
+          
+          // Notify parent component about conversation update
+          if (onConversationUpdate) {
+            onConversationUpdate({
+              id: currentConversationId || 'new',
+              title: 'New Conversation',
+              messageCount: messages.length + 1,
+              lastMessage: fullResponse.substring(0, 100) + (fullResponse.length > 100 ? '...' : ''),
+              lastActivity: new Date().toISOString()
+            });
+          }
+        },
+        // onError - called if there's an error
+        (error: string) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: `**Error:** ${error}` }
+              : msg
+          ));
+        },
+        // onConnection - called when connection is established
+        (conversationId: string, isNewConversation: boolean) => {
+          if (isNewConversation) {
+            setCurrentConversationId(conversationId);
+          }
+        },
+        // onToolMatch - called when a tool is matched
+        (toolMatch: any) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, toolMatch }
+              : msg
+          ));
+        },
+        // onClarification - called when clarification is needed
+        (clarificationRequest: any) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, needsClarification: true, clarificationRequest }
+              : msg
+          ));
+        },
+        // onExecutionResult - called when tool execution completes
+        (executionResult: any) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, executionResult }
+              : msg
+          ));
         }
-
-        // Add assistant response to UI
-        const assistantMessage: Message = {
-          id: Date.now().toString() + '-assistant',
-          role: 'assistant',
-          content: result.data.assistantResponse.content,
-          timestamp: result.data.assistantResponse.timestamp,
-          toolMatch: result.data.assistantResponse.toolMatch,
-          needsClarification: result.data.assistantResponse.needsClarification,
-          clarificationRequest: result.data.assistantResponse.clarificationRequest
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-
-        // Notify parent component about conversation update
-        if (onConversationUpdate) {
-          onConversationUpdate(result.data.conversation);
-        }
-      } else {
-        // Handle error
-        const errorMessage: Message = {
-          id: Date.now().toString() + '-error',
-          role: 'assistant',
-          content: `**Error:** ${result.error || 'Failed to process message'}`,
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      }
+      );
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: Date.now().toString() + '-error',
-        role: 'assistant',
-        content: '**Error:** Failed to connect to server',
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: '**Error:** Failed to connect to server' }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
-  }, [inputValue, isLoading, currentConversationId, onConversationUpdate]);
+  }, [inputValue, isLoading, currentConversationId, onConversationUpdate, messages.length, streamingSpeed]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -377,18 +404,42 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="flex-shrink-0 p-5 bg-warm-gray border-b border-gray-200/60 shadow-soft">
-        <h2 className="text-xl font-display text-primary">
-          {currentConversationId ? 'Conversation' : 'New Conversation'}
-        </h2>
-        {currentConversationId && (
-          <p className="text-sm text-gray-600 mt-2 font-medium">
-            ID: <span className="font-code text-accent">{currentConversationId.substring(0, 8)}...</span>
-          </p>
-        )}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-display text-primary">
+              {currentConversationId ? 'Conversation' : 'New Conversation'}
+            </h2>
+            {currentConversationId && (
+              <p className="text-sm text-gray-600 mt-2 font-medium">
+                ID: <span className="font-code text-accent">{currentConversationId.substring(0, 8)}...</span>
+              </p>
+            )}
+          </div>
+          
+          {/* Streaming Speed Toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 font-medium">Speed:</span>
+            <div className="flex bg-white rounded-lg border border-gray-200 p-1">
+              {(['fast', 'normal', 'slow'] as const).map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => setStreamingSpeed(speed)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    streamingSpeed === speed
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  {speed.charAt(0).toUpperCase() + speed.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar hide-scrollbar">
         {messages.length === 0 && !currentConversationId ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -427,18 +478,18 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
           </div>
         )}
 
-        {/* Loading indicator */}
+        {/* Loading indicator - Single indicator for streaming */}
         {isLoading && (
           <div className="flex justify-start mb-4">
             <div className="max-w-[80%]">
-              <div className="bg-warm-gray border border-gray-200/60 rounded-2xl rounded-bl-sm px-5 py-4 shadow-soft">
-                <div className="flex items-center gap-3 text-gray-600">
+              <div className="bg-primary/10 border border-primary/20 rounded-2xl rounded-bl-sm px-5 py-4 shadow-soft">
+                <div className="flex items-center gap-3 text-primary">
                   <div className="flex space-x-1">
-                    <div className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce"></div>
-                    <div className="w-2.5 h-2.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2.5 h-2.5 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                   </div>
-                  <span className="text-sm font-medium font-poppins">Assistant is thinking...</span>
+                  <span className="text-sm font-medium font-poppins">Assistant is typing...</span>
                 </div>
               </div>
             </div>

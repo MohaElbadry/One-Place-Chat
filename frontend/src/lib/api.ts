@@ -269,6 +269,94 @@ class ApiClient {
     }>('/conversations/stats/overview');
     return response.data!;
   }
+
+  // Streaming chat method using Server-Sent Events (SSE)
+  async streamChat(
+    message: string, 
+    conversationId?: string, 
+    userId?: string,
+    speed: 'fast' | 'normal' | 'slow' = 'normal',
+    onChunk?: (chunk: string) => void,
+    onComplete?: (fullResponse: string) => void,
+    onError?: (error: string) => void,
+    onConnection?: (conversationId: string, isNewConversation: boolean) => void,
+    onToolMatch?: (toolMatch: any) => void,
+    onClarification?: (clarificationRequest: any) => void,
+    onExecutionResult?: (executionResult: any) => void
+  ): Promise<void> {
+    const url = `${this.baseUrl}/conversations/chat/stream`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message, conversationId, userId, speed }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Streaming request failed: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body available for streaming');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.type) {
+                case 'connection':
+                  onConnection?.(data.conversationId, data.isNewConversation);
+                  break;
+                case 'chunk':
+                  onChunk?.(data.content);
+                  break;
+                case 'complete':
+                  onComplete?.(data.content);
+                  break;
+                case 'error':
+                  onError?.(data.error);
+                  break;
+                case 'toolMatch':
+                  onToolMatch?.(data.toolMatch);
+                  break;
+                case 'clarification':
+                  onClarification?.(data.clarificationRequest);
+                  break;
+                case 'executionResult':
+                  onExecutionResult?.(data.executionResult);
+                  break;
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Streaming chat error:', error);
+      onError?.(error instanceof Error ? error.message : 'Unknown error occurred');
+    }
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
