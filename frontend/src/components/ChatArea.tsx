@@ -53,7 +53,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
       const result = await apiClient.getConversation(conversationId);
-      
+
       if (result) {
         setCurrentConversationId(conversationId);
         setMessages(result.messages || []);
@@ -77,7 +77,7 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     const userMessage = inputValue.trim();
     setInputValue('');
     setIsLoading(true);
-    
+
 
 
     // Add user message to UI immediately
@@ -178,9 +178,9 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
   }, []);
 
   const formatMessageTime = useMemo(() => (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }, []);
 
@@ -198,11 +198,11 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
 
     const lines = content.split('\n');
     const isExpanded = expandedMessages.has(messageId);
-    
+
     if (isExpanded) {
       return { content, isTruncated: false };
     }
-  // Check if message content is long (more than 30 lines)
+    // Check if message content is long (more than 30 lines)
     const truncatedContent = lines.slice(0, 20).join('\n') + '\n...';
     return { content: truncatedContent, isTruncated: true };
   }, [isLongMessage, expandedMessages]);
@@ -214,9 +214,10 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     return (
       <div className="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
         <div className="text-sm font-medium text-blue-800">
-          <div className='font-black inline'>Tool Detected : </div> {toolMatch.tool.name}
+          <p className=' inline text-base font-bold text-primary'> Tool Detected : </p> {toolMatch.tool.name}
         </div>
       </div>
+
     );
   }, []);
 
@@ -233,13 +234,12 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
               <span className="font-medium">Missing information:</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {clarificationRequest.missingFields.map((field: any, index: number) => (
-                  <span 
-                    key={index} 
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      field.type === 'required' 
-                        ? 'bg-red-100 text-red-700' 
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
+                  <span
+                    key={index}
+                    className={`px-2 py-1 rounded text-xs font-medium ${field.type === 'required'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-blue-100 text-blue-700'
+                      }`}
                   >
                     {field.name}
                   </span>
@@ -254,21 +254,22 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
 
   // Custom components for ReactMarkdown
   const markdownComponents = useMemo(() => ({
-    code({node, inline, className, children, ...props}: any) {
+    code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
       return !inline && match ? (
         <SyntaxHighlighter
           style={oneDark}
           language={match[1]}
           PreTag="div"
-          className="rounded-lg text-sm !overflow-x-auto !max-w-full"
+          className="rounded-lg text-sm !overflow-x-auto !max-w-full font-code"
           wrapLines={true}
           wrapLongLines={true}
           customStyle={{
             maxWidth: '100%',
             overflowX: 'auto',
             whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all'
+            wordBreak: 'break-all',
+            fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace'
           }}
           {...props}
         >
@@ -308,31 +309,31 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       const isUser = message.role === 'user';
       const isAssistant = message.role === 'assistant';
       const { content: displayContent, isTruncated } = truncateMessage(message.content, message.id);
-      
+
       // Use original message content without tool info
       const fullContent = displayContent;
-      
+
       return (
         <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
           <div className={`max-w-[80%] min-w-0 ${isUser ? 'order-2' : 'order-1'}`}>
             {/* Message bubble */}
-            <div className={`rounded-2xl px-4 py-3 ${
-              isUser 
-                ? 'bg-blue-500 text-white rounded-br-sm' 
-                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
-            }`}>
-              {/* Timestamp and role */}
-              <div className={`text-xs mb-2 ${
-                isUser ? 'text-blue-100' : 'text-gray-500'
+            <div className={`rounded-2xl px-5 py-4 ${isUser
+              ? 'bg-gradient-to-r from-secondary bg-[#B4EBFF] to-orange-500  rounded-br-sm shadow-medium'
+              : 'bg-warm-gray border border-gray-200/60 text-gray-800 rounded-bl-sm shadow-soft'
               }`}>
-                {isUser ? 'You' : 'Assistant'} • {formatMessageTime(message.timestamp)}
+              {/* Timestamp and role */}
+              <div className={`text-xs mb-3 font-medium ${isUser ? 'text-blue-100' : 'text-gray-500'
+                }`}>
+                <span className="font-semibold text-gray-500 font-poppins">{isUser ? 'You' : 'Assistant'}</span>
+                <span className="mx-2 opacity-60">•</span>
+                <span className="font-code text-accent">{formatMessageTime(message.timestamp)}</span>
               </div>
-              
+
               {/* Message content */}
-              <div className={`${isUser ? 'text-white' : 'text-gray-800'} break-words overflow-hidden`}>
+              <div className={`${isUser ? 'text-gray-800' : 'text-gray-800'} break-words overflow-hidden`}>
                 {isAssistant ? (
                   <div className="prose prose-sm max-w-none overflow-hidden">
-                    <ReactMarkdown 
+                    <ReactMarkdown
                       components={markdownComponents}
                     >
                       {fullContent}
@@ -349,17 +350,16 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
               {isLongMessage(message.content) && (
                 <button
                   onClick={() => toggleMessageExpansion(message.id)}
-                  className={`mt-2 text-xs font-medium transition-colors ${
-                    isUser 
-                      ? 'text-blue-100 hover:text-white' 
-                      : 'text-blue-600 hover:text-blue-800'
-                  }`}
+                  className={`mt-3 text-sm font-semibold transition-smooth px-3 py-1.5 rounded-lg ${isUser
+                    ? 'text-blue-100 hover:text-white hover:bg-blue-400/20'
+                    : 'text-primary hover:text-accent hover:bg-accent/10'
+                    }`}
                 >
                   {expandedMessages.has(message.id) ? 'See less' : 'See more'}
                 </button>
               )}
             </div>
-            
+
             {/* Tool information and clarification requests */}
             {isAssistant && (
               <div className="mt-2">
@@ -376,13 +376,13 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 bg-white border-b shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-800">
+      <div className="flex-shrink-0 p-5 bg-warm-gray border-b border-gray-200/60 shadow-soft">
+        <h2 className="text-xl font-display text-primary">
           {currentConversationId ? 'Conversation' : 'New Conversation'}
         </h2>
         {currentConversationId && (
-          <p className="text-sm text-gray-600 mt-1">
-            ID: {currentConversationId.substring(0, 8)}...
+          <p className="text-sm text-gray-600 mt-2 font-medium">
+            ID: <span className="font-code text-accent">{currentConversationId.substring(0, 8)}...</span>
           </p>
         )}
       </div>
@@ -391,10 +391,34 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {messages.length === 0 && !currentConversationId ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center text-gray-500">
-              <div className="text-4xl mb-4">💬</div>
-              <div className="text-lg font-medium mb-2">Start a new conversation</div>
-              <div className="text-sm text-gray-400">Type your message below to begin chatting</div>
+            <div className="text-center">
+              <div className="text-6xl mb-6">💬</div>
+              <div className="text-2xl font-display text-primary mb-3">Start a new conversation</div>
+              <div className="text-base text-gray-500 font-medium font-poppins">Type your message below to begin chatting</div>
+              {!currentConversationId && (
+                <div className="flex-shrink-0 px-4 pt-4 pb-2  border-gray-200/60">
+                  <div className="mb-3 flex flex-col gap-2 ">
+                    <button
+                      onClick={() => setInputValue("Get a JSON response from an API")}
+                      className="px-3 py-2 text-sm font-medium text-primary bg-white border border-primary/20 rounded-lg hover:bg-primary/20 hover:border-primary/30 transition-smooth"
+                    >
+                      Get a JSON response
+                    </button>
+                    <button
+                      onClick={() => setInputValue("Get a pet by ID 5")}
+                      className="px-3 py-2 text-sm font-medium text-secondary bg-white border border-secondary/20 rounded-lg hover:bg-secondary/20 hover:border-secondary/30 transition-smooth"
+                    >
+                      Get a pet by ID
+                    </button>
+                    <button
+                      onClick={() => setInputValue("Find pets by status available")}
+                      className="px-3 py-2 text-sm font-medium text-accent bg-white border border-accent/20 rounded-lg hover:bg-accent/20 hover:border-accent/30 transition-smooth"
+                    >
+                      Find pets by status
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -402,51 +426,54 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
             {renderedMessages}
           </div>
         )}
-        
+
         {/* Loading indicator */}
         {isLoading && (
           <div className="flex justify-start mb-4">
             <div className="max-w-[80%]">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-warm-gray border border-gray-200/60 rounded-2xl rounded-bl-sm px-5 py-4 shadow-soft">
+                <div className="flex items-center gap-3 text-gray-600">
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    <div className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce"></div>
+                    <div className="w-2.5 h-2.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2.5 h-2.5 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm">Assistant is thinking...</span>
+                  <span className="text-sm font-medium font-poppins">Assistant is thinking...</span>
                 </div>
               </div>
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
+
+
       {/* Input Area */}
       <div className="flex-shrink-0 p-4 bg-white border-t">
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-center">
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your message here..."
-            className="flex-1 p-3 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[44px] max-h-32 text-gray-900 overflow-y-auto"
+            className="flex-1 p-4 border border-gray-300/60 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[48px] max-h-32 text-gray-900 overflow-y-auto font-medium text-base leading-relaxed bg-warm-gray"
             rows={1}
             disabled={isLoading}
             style={{
               resize: 'none',
               overflow: 'hidden',
               height: 'auto',
-              minHeight: '44px'
+              minHeight: '48px',
+              fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
             }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
               target.style.height = 'auto';
               const newHeight = Math.min(target.scrollHeight, 128);
               target.style.height = newHeight + 'px';
-              
+
               // Enable scrolling after 4 lines (approximately 88px)
               if (newHeight > 88) {
                 target.style.overflowY = 'auto';
@@ -458,19 +485,22 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="px-6 py-3 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-success bg-green-600 to-green-50 text-white rounded-2xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 transition-smooth shadow-medium hover:shadow-lg font-semibold text-base"
           >
+            
+            Send
             {isLoading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2  border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 rotate-90 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             )}
-            Send
           </button>
         </div>
       </div>
+      
+
     </div>
   );
 }

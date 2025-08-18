@@ -129,7 +129,7 @@ class ChatInterface {
             const confidence = response.toolMatch.confidence;
             const confidenceColor = confidence > 0.8 ? chalk.green : confidence > 0.5 ? chalk.yellow : chalk.red;
             
-            console.log(chalk.gray(`\n🔧 Tool Detected: ${chalk.cyan(response.toolMatch.tool.name)}`));
+            console.log(chalk.gray(`\n Tool Detected: ${chalk.cyan(response.toolMatch.tool.name)}`));
             console.log(chalk.gray(`📊 Confidence: ${confidenceColor(confidence.toFixed(2))}`));
             console.log(chalk.gray(`📝 Description: ${response.toolMatch.tool.description}`));
             console.log(chalk.gray(`🌐 Method: ${chalk.blue(response.toolMatch.tool.endpoint.method)} ${chalk.gray(response.toolMatch.tool.endpoint.path)}`));

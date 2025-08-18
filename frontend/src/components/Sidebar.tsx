@@ -45,9 +45,7 @@ export default function Sidebar({
 
   const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this conversation?')) {
-      onConversationDelete(conversationId);
-    }
+    onConversationDelete(conversationId);
   };
 
   return (
@@ -61,7 +59,7 @@ export default function Sidebar({
         {/* New Conversation Button */}
         <button
           onClick={onNewConversation}
-          className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex justify-center gap-2"
         >
           <span className="w-4 h-4">+</span>
           New Conversation

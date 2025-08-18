@@ -17,9 +17,10 @@ interface Tool {
 
 interface ToolsPanelProps {
   tools: Tool[];
+  onToolClick?: (tool: Tool) => void;
 }
 
-export default function ToolsPanel({ tools }: ToolsPanelProps) {
+export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
 
@@ -91,13 +92,13 @@ export default function ToolsPanel({ tools }: ToolsPanelProps) {
             placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900"
           />
         </div>
       </div>
 
       {/* Tools List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto">
         {filteredTools.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <span className="w-8 h-8 mx-auto mb-2 text-gray-300">🔧</span>
@@ -112,7 +113,8 @@ export default function ToolsPanel({ tools }: ToolsPanelProps) {
               return (
                 <div
                   key={tool.id}
-                  className="p-3 rounded-lg border border-gray-200 mb-2 hover:bg-gray-50 transition-colors"
+                  onClick={() => onToolClick?.(tool)}
+                  className="p-3 rounded-lg border border-gray-200 mb-2 hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
@@ -140,6 +142,19 @@ export default function ToolsPanel({ tools }: ToolsPanelProps) {
                   
                   <div className="text-xs text-gray-500 break-all">
                     <span className="font-mono">{tool.path}</span>
+                    {/* Show path parameters if they exist */}
+                    {tool.path.match(/\{([^}]+)\}/g) && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {tool.path.match(/\{([^}]+)\}/g)?.map((param: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                          >
+                            {param.replace(/[{}]/g, '')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   {tool.tags && tool.tags.length > 0 && (
