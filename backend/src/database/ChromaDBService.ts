@@ -57,9 +57,12 @@ export class ChromaDBService {
   private isInitialized = false;
 
   constructor() {
+    const host = process.env.CHROMADB_HOST || 'localhost';
+    const port = parseInt(process.env.CHROMADB_PORT || '8000');
+    
     this.client = new ChromaClient({ 
-      host: 'localhost',
-      port: 8000 
+      host,
+      port
     });
   }
 

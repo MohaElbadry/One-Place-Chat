@@ -23,11 +23,3 @@ export function getLLMConfig(modelName: string = 'gpt-4'): LLMConfig {
 
   return config;
 }
-
-export function getAvailableModels(): string[] {
-  return [
-    'gpt-4',
-    'gpt-4-turbo-preview',
-    'gpt-3.5-turbo',
-  ];
-} 

@@ -92,30 +92,6 @@ export class CurlCommandGenerator {
     return ' -H "Authorization: Bearer YOUR_TOKEN"';
   }
 
-  /**
-   * Validate and sanitize parameters for cURL generation
-   */
-  static sanitizeParameters(parameters: Record<string, any>): Record<string, any> {
-    const sanitized: Record<string, any> = {};
-    const placeholderValues = ['Unknown', 'unknown', '', 'N/A', 'n/a', 'TBD', 'tbd'];
-
-    for (const [key, value] of Object.entries(parameters)) {
-      if (value !== undefined && value !== null) {
-        if (typeof value === 'string' && !placeholderValues.includes(value)) {
-          sanitized[key] = value;
-        } else if (Array.isArray(value)) {
-          const filteredArray = value.filter(v => !placeholderValues.includes(v));
-          if (filteredArray.length > 0) {
-            sanitized[key] = filteredArray;
-          }
-        } else if (typeof value !== 'string') {
-          sanitized[key] = value;
-        }
-      }
-    }
-
-    return sanitized;
-  }
 
   /**
    * Check if parameters contain placeholder values
