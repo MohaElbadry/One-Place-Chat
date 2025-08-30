@@ -46,8 +46,8 @@ router.get('/health', async (req, res) => {
   try {
     await ensureInitialized();
     
-    // Always refresh tools from ChromaDB to get the latest state
-    await toolLoader.refreshTools();
+    // Always load fresh tools from ChromaDB to get the latest state
+    await toolLoader.loadTools();
     const tools = toolLoader.getTools();
     
     res.json({
@@ -81,8 +81,8 @@ router.get('/', async (req, res) => {
   try {
     await ensureInitialized();
     
-    // Always refresh tools from ChromaDB to get the latest state
-    await toolLoader.refreshTools();
+    // Always load fresh tools from ChromaDB to get the latest state
+    await toolLoader.loadTools();
     const tools = toolLoader.getTools();
     
     res.json({
@@ -126,8 +126,8 @@ router.get('/search', async (req, res) => {
 
     await ensureInitialized();
     
-    // Always refresh tools from ChromaDB before searching
-    await toolLoader.refreshTools();
+    // Always load fresh tools from ChromaDB before searching
+    await toolLoader.loadTools();
     
     const searchLimit = Math.min(parseInt(limit as string) || 10, 50);
     const tools = await toolLoader.searchTools(query, searchLimit);
@@ -199,7 +199,7 @@ router.post('/force-refresh', async (req, res) => {
     isInitialized = false;
     
     // Clear the tool loader cache
-    await toolLoader.refreshTools();
+    await toolLoader.loadTools();
     
     // Re-initialize everything
     await ensureInitialized();
@@ -502,7 +502,7 @@ router.post('/upload', upload.single('file'), async (req: any, res) => {
     }
 
     // Refresh the tool loader to include new tools
-    await toolLoader.refreshTools();
+    await toolLoader.loadTools();
 
     res.status(201).json({
       success: true,

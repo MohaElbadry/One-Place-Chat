@@ -8,6 +8,7 @@ import { LLMProvider } from './LLMProvider.js';
 import { getLLMConfig } from '../config/llm-config.js';
 import { appConfig } from '../config/app-config.js';
 import { EnhancedChatResponse, ConversationState } from '../types/conversation.types.js';
+import { ChromaDBToolLoader } from '../tools/ChromaDBToolLoader.js';
 
 /**
  * ConversationalEngine - Main orchestrator for natural language API interactions
@@ -214,16 +215,40 @@ export class ConversationalEngine {
     return await this.processNewRequest(conversationId, userInput, state, addAssistantMessage);
   }
 
-  // Processes a new user request by finding the best matching tool and extracting parameters
+  /**
+   * Process a new user message with conversational AI logic
+   * This method handles the complete workflow from user input to response generation
+   */
   private async processNewRequest(conversationId: string, userInput: string, state: ConversationState, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
-    // Check if we have any tools available
-    if (this.tools.length === 0) {
+    // Always load tools fresh from the database - NO CACHING
+    try {
+      const toolLoader = new ChromaDBToolLoader();
+      const freshTools = await toolLoader.loadTools();
+      this.tools = freshTools; // Always use fresh tools, no caching
+      
+      if (this.tools.length === 0) {
+        const response: EnhancedChatResponse = {
+          message: `🔧 **No API tools available yet!**\n\nTo get started, you need to upload an OpenAPI specification first.\n\n**How to upload tools:**\n1. Click the "Upload Tools" button in the top right\n2. Select your OpenAPI JSON file\n3. Wait for the tools to be generated\n4. Then you can start using the API!\n\n**What you can upload:**\n- OpenAPI 3.x specifications\n- Swagger 2.0 specifications\n- Any JSON file with API endpoints\n\nOnce you have tools uploaded, I'll be able to help you interact with your APIs! 🚀`,
+          needsClarification: false,
+          conversationId
+        };
+        if (addAssistantMessage) {
+          this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+        }
+        return response;
+      }
+      
+      // Initialize tool matcher with fresh tools
+      await this.initializeToolMatcher();
+      
+    } catch (error) {
+      console.error('❌ Failed to load fresh tools:', error);
+      // If we can't load tools, show the upload message
       const response: EnhancedChatResponse = {
-        message: `🔧 **No API tools available yet!**\n\nTo get started, you need to upload an OpenAPI specification first.\n\n**How to upload tools:**\n1. Click the "Upload Tools" button in the top right\n2. Select your OpenAPI JSON file\n3. Wait for the tools to be generated\n4. Then you can start using the API!\n\n**What you can upload:**\n- OpenAPI 3.x specifications\n- Swagger 2.0 specifications\n- Any JSON file with API endpoints\n\nOnce you have tools uploaded, I'll be able to help you interact with your APIs! 🚀`,
+        message: `🔧 **Unable to load API tools!**\n\nThere was an error loading the tools from the database. Please try uploading your OpenAPI specification again.\n\n**How to upload tools:**\n1. Click the "Upload Tools" button in the top right\n2. Select your OpenAPI JSON file\n3. Wait for the tools to be generated\n\nIf the problem persists, please check your ChromaDB connection.`,
         needsClarification: false,
         conversationId
       };
-
       if (addAssistantMessage) {
         this.conversationStore.addMessage(conversationId, 'assistant', response.message);
       }

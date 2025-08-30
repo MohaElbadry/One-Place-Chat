@@ -16,10 +16,10 @@ export class ChromaDBToolLoader {
 
   /**
    * Load tools directly from ChromaDB
+   * ALWAYS loads fresh data - NO CACHING
    */
   async loadTools(): Promise<MCPTool[]> {
-    if (this.loaded) return this.tools;
-    
+    // Always load fresh from ChromaDB - NO CACHING
     try {
       // Initialize ChromaDB connection
       await this.chromaService.initialize();
@@ -31,15 +31,20 @@ export class ChromaDBToolLoader {
       const toolEmbeddings = await this.chromaService.getToolsFromCollection('generated_tools');
       
       // Extract the actual MCPTool objects
-      this.tools = toolEmbeddings.map(te => te.tool);
+      const freshTools = toolEmbeddings.map(te => te.tool);
       
-      this.loaded = true;
+      // Update the tools array but don't mark as loaded (always fresh)
+      this.tools = freshTools;
+      
       // Only log if no tools found (potential issue) or significant number
       if (this.tools.length === 0) {
         console.log('⚠️ No tools found in ChromaDB');
       } else if (this.tools.length > 50) {
-        console.log(`✅ Loaded ${this.tools.length} tools from ChromaDB`);
+        console.log(`✅ Loaded ${this.tools.length} fresh tools from ChromaDB (no caching)`);
+      } else {
+        console.log(`✅ Loaded ${this.tools.length} fresh tools from ChromaDB (no caching)`);
       }
+      
       return this.tools;
     } catch (error) {
       console.error('❌ Error loading tools from ChromaDB:', error);
@@ -49,7 +54,6 @@ export class ChromaDBToolLoader {
       if (errorMessage.includes('not initialized') || errorMessage.includes('No results')) {
         console.log('ℹ️ ChromaDB is empty or not accessible. No tools loaded.');
         this.tools = [];
-        this.loaded = true;
         return this.tools;
       }
       
@@ -61,15 +65,13 @@ export class ChromaDBToolLoader {
         // Try to load tools again
         const toolEmbeddings = await this.chromaService.getToolsFromCollection('generated_tools');
         this.tools = toolEmbeddings.map(te => te.tool);
-        this.loaded = true;
         
-        console.log(`✅ Recovered and loaded ${this.tools.length} tools from ChromaDB`);
+        console.log(`✅ Recovered and loaded ${this.tools.length} fresh tools from ChromaDB (no caching)`);
         return this.tools;
       } catch (recoveryError) {
         console.error('❌ Recovery failed:', recoveryError);
         // Return empty array as fallback
         this.tools = [];
-        this.loaded = true;
         return this.tools;
       }
     }
@@ -126,10 +128,10 @@ export class ChromaDBToolLoader {
   }
 
   /**
-   * Check if tools are loaded
+   * Check if tools are loaded (always returns true since we don't cache)
    */
   isLoaded(): boolean {
-    return this.loaded;
+    return true; // Always true since we don't cache
   }
 
   /**
@@ -161,27 +163,19 @@ export class ChromaDBToolLoader {
   }
 
   /**
-   * Refresh tools from ChromaDB
-   */
-  async refreshTools(): Promise<MCPTool[]> {
-    this.loaded = false;
-    return await this.loadTools();
-  }
-
-  /**
    * Force a complete refresh from ChromaDB, clearing all caches
+   * Note: Since we no longer cache, this just ensures fresh data
    */
   async forceRefreshTools(): Promise<MCPTool[]> {
-    console.log('🔄 Force refreshing tools from ChromaDB...');
+    console.log('🔄 Force refreshing tools from ChromaDB (no caching)...');
     
-    // Clear all caches
-    this.loaded = false;
+    // Clear any in-memory tools (though we don't cache anymore)
     this.tools = [];
     
     // Force reload from ChromaDB
     const refreshedTools = await this.loadTools();
     
-    console.log(`✅ Force refresh completed. Found ${refreshedTools.length} tools.`);
+    console.log(`✅ Force refresh completed. Found ${refreshedTools.length} fresh tools.`);
     return refreshedTools;
   }
 

@@ -339,7 +339,7 @@ router.post('/chat', ErrorHandler.asyncHandler(async (req, res) => {
   // Refresh tools before processing to ensure we have the latest state
   try {
     const toolLoader = new ChromaDBToolLoader();
-    const refreshedTools = await toolLoader.refreshTools();
+    const refreshedTools = await toolLoader.loadTools();
     if (refreshedTools.length > 0) {
       console.log(`🔄 Refreshed tools before chat. Found ${refreshedTools.length} tools.`);
       // Update the chat engine with the latest tools
