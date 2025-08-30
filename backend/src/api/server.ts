@@ -35,6 +35,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       tools: '/api/tools',
+      'tools-upload': '/api/tools/upload',
       conversations: '/api/conversations',
       health: '/api/health'
     }
@@ -63,6 +64,7 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}`);
   console.log(`🔧 Tools endpoint: http://localhost:${PORT}/api/tools`);
+  console.log(`📤 Tools upload endpoint: http://localhost:${PORT}/api/tools/upload`);
   console.log(`💬 Conversations endpoint: http://localhost:${PORT}/api/conversations`);
 });
 
