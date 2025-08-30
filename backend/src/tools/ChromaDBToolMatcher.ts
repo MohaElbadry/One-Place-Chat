@@ -30,6 +30,9 @@ export class ChromaDBToolMatcher {
       // Initialize ChromaDB
       await this.chromaService.initialize();
       
+      // Ensure all required collections exist
+      await this.chromaService.ensureCollectionsExist();
+      
       // Check if we already have tools stored
       const existingTools = await this.chromaService.getAllTools();
       
@@ -51,10 +54,32 @@ export class ChromaDBToolMatcher {
       }
       
       this._initialized = true;
-      // Removed verbose initialization logging
+      console.log('✅ ChromaDB tool matcher initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize ChromaDB tool matcher:', error);
-      throw error;
+      
+      // Try to recover by ensuring collections exist
+      try {
+        console.log('🔄 Attempting to recover by ensuring collections exist...');
+        await this.chromaService.ensureCollectionsExist();
+        
+        // Try to initialize again
+        await this.chromaService.initialize();
+        
+        // Check if we have tools stored
+        const existingTools = await this.chromaService.getAllTools();
+        
+        if (existingTools.length === 0 && tools.length > 0) {
+          console.log('🔄 Generating embeddings for tools...');
+          await this.generateAndStoreToolEmbeddings(tools);
+        }
+        
+        this._initialized = true;
+        console.log('✅ ChromaDB tool matcher recovered successfully');
+      } catch (recoveryError) {
+        console.error('❌ Recovery failed:', recoveryError);
+        throw error; // Throw original error if recovery fails
+      }
     }
   }
 

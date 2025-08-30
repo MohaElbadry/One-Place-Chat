@@ -20,15 +20,22 @@ interface Message {
 interface ChatAreaProps {
   selectedConversationId: string | null;
   onConversationUpdate?: (conversation: any) => void;
+  refreshTools?: () => void;
 }
 
-export default function ChatArea({ selectedConversationId, onConversationUpdate }: ChatAreaProps) {
+export default function ChatArea({ selectedConversationId, onConversationUpdate, refreshTools }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState<string>('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load conversation when selectedConversationId changes
   useEffect(() => {
@@ -164,6 +171,83 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
       handleSendMessage();
     }
   }, [handleSendMessage]);
+
+  // File upload handlers
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        setUploadedFile(file);
+        setUploadError('');
+      } else {
+        setUploadError('Please select a valid JSON file');
+      }
+    }
+  }, []);
+
+  const handleUpload = useCallback(async () => {
+    if (!uploadedFile) return;
+
+    try {
+      setUploadStatus('uploading');
+      setUploadProgress(0);
+
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      // Create FormData and upload
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+
+      const response = await fetch(`${getApiUrl()}/tools/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${response.statusText}`);
+      }
+
+      setUploadStatus('processing');
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setUploadStatus('success');
+      
+      // Refresh tools list if parent component provides callback
+      if (refreshTools) {
+        refreshTools();
+      }
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadStatus('error');
+      setUploadError(error instanceof Error ? error.message : 'Upload failed');
+    }
+  }, [uploadedFile, refreshTools]);
+
+  const resetUploadState = useCallback(() => {
+    setUploadStatus('idle');
+    setUploadProgress(0);
+    setUploadedFile(null);
+    setUploadError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
 
   const toggleMessageExpansion = useCallback((messageId: string) => {
     setExpandedMessages(prev => {
@@ -377,14 +461,30 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="flex-shrink-0 p-5 bg-warm-gray border-b border-gray-200/60 shadow-soft">
-        <h2 className="text-xl font-display text-primary">
-          {currentConversationId ? 'Conversation' : 'New Conversation'}
-        </h2>
-        {currentConversationId && (
-          <p className="text-sm text-gray-600 mt-2 font-medium">
-            ID: <span className="font-code text-accent">{currentConversationId.substring(0, 8)}...</span>
-          </p>
-        )}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-display text-primary">
+              {currentConversationId ? 'Conversation' : 'New Conversation'}
+            </h2>
+            {currentConversationId && (
+              <p className="text-sm text-gray-600 mt-2 font-medium">
+                ID: <span className="font-code text-accent">{currentConversationId.substring(0, 8)}...</span>
+              </p>
+            )}
+          </div>
+          
+          {/* Upload Tools Button */}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all shadow-medium hover:shadow-lg font-medium text-sm"
+            title="Upload OpenAPI specification to generate tools"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Upload Tools
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -500,7 +600,236 @@ export default function ChatArea({ selectedConversationId, onConversationUpdate 
         </div>
       </div>
       
-
+      {/* Upload Tools Modal */}
+      {showUploadModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowUploadModal(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl p-8 max-w-2xl w-full mx-4 shadow-2xl transform transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-display text-gray-900">Upload OpenAPI Specification</h3>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-smooth"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Upload Area */}
+            <div className="mb-6">
+              {uploadStatus === 'idle' && (
+                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-primary/50 transition-colors">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  </div>
+                  
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Upload OpenAPI JSON File</h4>
+                  <p className="text-gray-600 mb-4">
+                    Upload a JSON file containing your OpenAPI/Swagger specification to generate tools
+                  </p>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-semibold transition-smooth shadow-medium"
+                  >
+                    Choose File
+                  </button>
+                  
+                  <p className="text-xs text-gray-500 mt-3">
+                    Supported formats: JSON files with OpenAPI 3.0 or Swagger 2.0 specifications
+                  </p>
+                </div>
+              )}
+              
+              {/* File Selected */}
+              {uploadedFile && uploadStatus === 'idle' && (
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="font-semibold text-green-900">{uploadedFile.name}</h5>
+                      <p className="text-sm text-green-700">
+                        {(uploadedFile.size / 1024).toFixed(1)} KB • Ready to upload
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setUploadedFile(null);
+                        setUploadError('');
+                      }}
+                      className="p-2 text-green-600 hover:text-green-800 rounded-full hover:bg-green-100 transition-smooth"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Upload Progress */}
+              {uploadStatus === 'uploading' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-blue-900">Uploading...</h5>
+                      <p className="text-sm text-blue-700">Sending file to server</p>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-blue-700 mt-2 text-center">{uploadProgress}%</p>
+                </div>
+              )}
+              
+              {/* Processing Progress */}
+              {uploadStatus === 'processing' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-amber-900">Processing...</h5>
+                      <p className="text-sm text-amber-700">Generating tools and embeddings</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm text-amber-700">Parsing OpenAPI specification</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm text-amber-700">Generating tool definitions</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm text-amber-700">Creating embeddings</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm text-amber-700">Storing in ChromaDB</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Success State */}
+              {uploadStatus === 'success' && (
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-green-900">Upload Successful!</h5>
+                      <p className="text-sm text-green-700">Tools have been generated and stored</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error State */}
+              {uploadStatus === 'error' && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-red-900">Upload Failed</h5>
+                      <p className="text-sm text-red-700">{uploadError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end">
+              {uploadStatus === 'idle' && uploadedFile && (
+                <button
+                  onClick={handleUpload}
+                  className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-semibold transition-smooth shadow-medium"
+                >
+                  Upload & Generate Tools
+                </button>
+              )}
+              
+              {uploadStatus === 'success' && (
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    resetUploadState();
+                  }}
+                  className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-smooth shadow-medium"
+                >
+                  Done
+                </button>
+              )}
+              
+              {uploadStatus === 'error' && (
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    resetUploadState();
+                  }}
+                  className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-smooth shadow-medium"
+                >
+                  Close
+                </button>
+              )}
+              
+              {(uploadStatus === 'idle' || uploadStatus === 'success' || uploadStatus === 'error') && (
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    resetUploadState();
+                  }}
+                  className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-smooth"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

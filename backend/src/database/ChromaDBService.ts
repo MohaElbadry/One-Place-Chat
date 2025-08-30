@@ -678,21 +678,81 @@ export class ChromaDBService {
     await this.initialize();
   }
 
+  /**
+   * Ensure all required collections exist, creating them if they don't
+   */
+  async ensureCollectionsExist(): Promise<void> {
+    try {
+      if (!this.toolsCollection) {
+        this.toolsCollection = await this.client.getOrCreateCollection({
+          name: 'generated_tools',
+          metadata: { description: 'API tools with embeddings for semantic search' }
+        });
+      }
+      
+      if (!this.conversationsCollection) {
+        this.conversationsCollection = await this.client.getOrCreateCollection({
+          name: 'conversations',
+          metadata: { description: 'Conversation history with context embeddings' }
+        });
+      }
+      
+      if (!this.messagesCollection) {
+        this.messagesCollection = await this.client.getOrCreateCollection({
+          name: 'messages',
+          metadata: { description: 'Individual conversation messages with embeddings for semantic search' }
+        });
+      }
+      
+      console.log('✅ All required collections verified/created');
+    } catch (error) {
+      console.error('❌ Failed to ensure collections exist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Safe method to get collection with fallback creation
+   */
+  private async getOrCreateCollectionSafe(name: string, metadata: any): Promise<Collection> {
+    try {
+      return await this.client.getCollection({ name });
+    } catch (error) {
+      console.log(`📝 Collection '${name}' not found, creating it...`);
+      return await this.client.createCollection({
+        name,
+        metadata
+      });
+    }
+  }
+
   async getDatabaseStats(): Promise<{
     toolsCount: number;
     conversationsCount: number;
     totalEmbeddings: number;
   }> {
-    if (!this.isInitialized) throw new Error('ChromaDB not initialized');
+    if (!this.isInitialized) {
+      // Try to initialize if not already done
+      await this.ensureCollectionsExist();
+    }
 
-    const toolsCount = await this.toolsCollection!.count();
-    const conversationsCount = await this.conversationsCollection!.count();
+    try {
+      const toolsCount = await this.toolsCollection!.count();
+      const conversationsCount = await this.conversationsCollection!.count();
 
-    return {
-      toolsCount,
-      conversationsCount,
-      totalEmbeddings: toolsCount + conversationsCount
-    };
+      return {
+        toolsCount,
+        conversationsCount,
+        totalEmbeddings: toolsCount + conversationsCount
+      };
+    } catch (error) {
+      console.error('❌ Error getting database stats:', error);
+      return {
+        toolsCount: 0,
+        conversationsCount: 0,
+        totalEmbeddings: 0
+      };
+    }
   }
 
   async close(): Promise<void> {

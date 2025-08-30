@@ -41,11 +41,48 @@ async function ensureInitialized() {
   }
 }
 
+// GET /api/tools/health - Get current tool status and health
+router.get('/health', async (req, res) => {
+  try {
+    await ensureInitialized();
+    
+    // Always refresh tools from ChromaDB to get the latest state
+    await toolLoader.refreshTools();
+    const tools = toolLoader.getTools();
+    
+    res.json({
+      success: true,
+      status: 'healthy',
+      tools: {
+        count: tools.length,
+        loaded: tools.length > 0,
+        lastRefresh: new Date().toISOString()
+      },
+      collections: {
+        generated_tools: 'available',
+        conversations: 'available',
+        messages: 'available'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error checking tools health:', error);
+    res.status(500).json({
+      success: false,
+      status: 'unhealthy',
+      error: 'Failed to check tools health',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // GET /api/tools - Get all available tools
 router.get('/', async (req, res) => {
   try {
     await ensureInitialized();
     
+    // Always refresh tools from ChromaDB to get the latest state
+    await toolLoader.refreshTools();
     const tools = toolLoader.getTools();
     
     res.json({
@@ -89,6 +126,9 @@ router.get('/search', async (req, res) => {
 
     await ensureInitialized();
     
+    // Always refresh tools from ChromaDB before searching
+    await toolLoader.refreshTools();
+    
     const searchLimit = Math.min(parseInt(limit as string) || 10, 50);
     const tools = await toolLoader.searchTools(query, searchLimit);
     
@@ -106,9 +146,7 @@ router.get('/search', async (req, res) => {
         readOnly: tool.annotations.readOnlyHint,
         openWorld: tool.annotations.openWorldHint
       })),
-      query,
       count: tools.length,
-      limit: searchLimit,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -116,6 +154,72 @@ router.get('/search', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to search tools',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/tools/refresh - Force refresh tools from ChromaDB
+router.post('/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Force refreshing tools from ChromaDB...');
+    
+    // Reset the initialization flag to force reload
+    isInitialized = false;
+    
+    // Re-initialize and reload tools
+    await ensureInitialized();
+    
+    const tools = toolLoader.getTools();
+    
+    console.log(`✅ Refreshed ${tools.length} tools from ChromaDB`);
+    
+    res.json({
+      success: true,
+      message: `Successfully refreshed ${tools.length} tools from ChromaDB`,
+      count: tools.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error refreshing tools:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh tools',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/tools/force-refresh - Force complete refresh and reinitialize
+router.post('/force-refresh', async (req, res) => {
+  try {
+    console.log('🔄 Force complete refresh and reinitialization...');
+    
+    // Reset the initialization flag
+    isInitialized = false;
+    
+    // Clear the tool loader cache
+    await toolLoader.refreshTools();
+    
+    // Re-initialize everything
+    await ensureInitialized();
+    
+    const tools = toolLoader.getTools();
+    
+    console.log(`✅ Force refreshed ${tools.length} tools from ChromaDB`);
+    
+    res.json({
+      success: true,
+      message: `Successfully force refreshed ${tools.length} tools from ChromaDB`,
+      count: tools.length,
+      timestamp: new Date().toISOString(),
+      action: 'force_refresh_completed'
+    });
+  } catch (error) {
+    console.error('Error force refreshing tools:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to force refresh tools',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

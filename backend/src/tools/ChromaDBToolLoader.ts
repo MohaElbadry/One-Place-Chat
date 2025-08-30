@@ -24,6 +24,9 @@ export class ChromaDBToolLoader {
       // Initialize ChromaDB connection
       await this.chromaService.initialize();
       
+      // Ensure all required collections exist
+      await this.chromaService.ensureCollectionsExist();
+      
       // Get all tools from the generated_tools collection
       const toolEmbeddings = await this.chromaService.getToolsFromCollection('generated_tools');
       
@@ -50,7 +53,25 @@ export class ChromaDBToolLoader {
         return this.tools;
       }
       
-      throw error;
+      // Try to recover by ensuring collections exist
+      try {
+        console.log('🔄 Attempting to recover by ensuring collections exist...');
+        await this.chromaService.ensureCollectionsExist();
+        
+        // Try to load tools again
+        const toolEmbeddings = await this.chromaService.getToolsFromCollection('generated_tools');
+        this.tools = toolEmbeddings.map(te => te.tool);
+        this.loaded = true;
+        
+        console.log(`✅ Recovered and loaded ${this.tools.length} tools from ChromaDB`);
+        return this.tools;
+      } catch (recoveryError) {
+        console.error('❌ Recovery failed:', recoveryError);
+        // Return empty array as fallback
+        this.tools = [];
+        this.loaded = true;
+        return this.tools;
+      }
     }
   }
 
@@ -145,6 +166,23 @@ export class ChromaDBToolLoader {
   async refreshTools(): Promise<MCPTool[]> {
     this.loaded = false;
     return await this.loadTools();
+  }
+
+  /**
+   * Force a complete refresh from ChromaDB, clearing all caches
+   */
+  async forceRefreshTools(): Promise<MCPTool[]> {
+    console.log('🔄 Force refreshing tools from ChromaDB...');
+    
+    // Clear all caches
+    this.loaded = false;
+    this.tools = [];
+    
+    // Force reload from ChromaDB
+    const refreshedTools = await this.loadTools();
+    
+    console.log(`✅ Force refresh completed. Found ${refreshedTools.length} tools.`);
+    return refreshedTools;
   }
 
   /**

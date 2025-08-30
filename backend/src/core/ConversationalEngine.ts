@@ -121,10 +121,19 @@ export class ConversationalEngine {
    * Updates the available API tools for the conversational engine
    * This method should be called whenever new tools are loaded or tools are updated
    */
-  updateTools(tools: MCPTool[]): void {
+  async updateTools(tools: MCPTool[]): Promise<void> {
     this.tools = tools;
-    // Initialize tool matcher when tools are updated
-    this.initializeToolMatcher();
+    // Immediately initialize tool matcher when tools are updated
+    if (tools.length > 0) {
+      try {
+        await this.initializeToolMatcher();
+        console.log(`✅ Tool matcher initialized with ${tools.length} tools`);
+      } catch (error) {
+        console.error('❌ Failed to initialize tool matcher after tool update:', error);
+      }
+    } else {
+      console.log('ℹ️ No tools available, tool matcher not initialized');
+    }
   }
 
   /**
@@ -207,6 +216,20 @@ export class ConversationalEngine {
 
   // Processes a new user request by finding the best matching tool and extracting parameters
   private async processNewRequest(conversationId: string, userInput: string, state: ConversationState, addAssistantMessage: boolean = true): Promise<EnhancedChatResponse> {
+    // Check if we have any tools available
+    if (this.tools.length === 0) {
+      const response: EnhancedChatResponse = {
+        message: `🔧 **No API tools available yet!**\n\nTo get started, you need to upload an OpenAPI specification first.\n\n**How to upload tools:**\n1. Click the "Upload Tools" button in the top right\n2. Select your OpenAPI JSON file\n3. Wait for the tools to be generated\n4. Then you can start using the API!\n\n**What you can upload:**\n- OpenAPI 3.x specifications\n- Swagger 2.0 specifications\n- Any JSON file with API endpoints\n\nOnce you have tools uploaded, I'll be able to help you interact with your APIs! 🚀`,
+        needsClarification: false,
+        conversationId
+      };
+
+      if (addAssistantMessage) {
+        this.conversationStore.addMessage(conversationId, 'assistant', response.message);
+      }
+      return response;
+    }
+
     const toolMatch = await this.toolMatcher.findBestMatch(userInput, this.tools);
     if (!toolMatch || toolMatch.confidence < this.MIN_CONFIDENCE_THRESHOLD) {
       const response: EnhancedChatResponse = {

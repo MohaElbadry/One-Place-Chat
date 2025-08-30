@@ -101,6 +101,15 @@ export default function ChatInterface() {
     setShowToolModal(true);
   };
 
+  const refreshTools = async () => {
+    try {
+      const toolsResponse = await apiClient.getTools();
+      setTools(toolsResponse || []);
+    } catch (error) {
+      console.error('Failed to refresh tools:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -128,6 +137,7 @@ export default function ChatInterface() {
         <ChatArea
           selectedConversationId={selectedConversationId}
           onConversationUpdate={handleConversationUpdate}
+          refreshTools={refreshTools}
         />
       </div>
 

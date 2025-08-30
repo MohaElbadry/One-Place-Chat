@@ -21,14 +21,32 @@ export class ConversationStoreChroma {
       // Initialize ChromaDB service
       await this.chromaService.initialize();
       
+      // Ensure all required collections exist
+      await this.chromaService.ensureCollectionsExist();
+      
       // Load existing conversations from ChromaDB
       await this.loadAllConversationsFromDB();
       
       this.isInitialized = true;
-      // Removed verbose initialization logging
+      console.log('✅ ConversationStore initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize ChromaDB-based conversation store:', error);
-      throw error;
+      
+      // Try to recover by ensuring collections exist
+      try {
+        console.log('🔄 Attempting to recover by ensuring collections exist...');
+        await this.chromaService.ensureCollectionsExist();
+        
+        // Try to initialize again
+        await this.chromaService.initialize();
+        await this.loadAllConversationsFromDB();
+        
+        this.isInitialized = true;
+        console.log('✅ ConversationStore recovered successfully');
+      } catch (recoveryError) {
+        console.error('❌ Recovery failed:', recoveryError);
+        throw error; // Throw original error if recovery fails
+      }
     }
   }
 

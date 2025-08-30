@@ -336,6 +336,29 @@ router.post('/chat', ErrorHandler.asyncHandler(async (req, res) => {
   // Add user message to conversation
   conversationStore.addMessage(currentConversationId, 'user', message);
   
+  // Refresh tools before processing to ensure we have the latest state
+  try {
+    const toolLoader = new ChromaDBToolLoader();
+    const refreshedTools = await toolLoader.refreshTools();
+    if (refreshedTools.length > 0) {
+      console.log(`🔄 Refreshed tools before chat. Found ${refreshedTools.length} tools.`);
+      // Update the chat engine with the latest tools
+      await chatEngine.updateTools(refreshedTools);
+      
+      // Immediately initialize the tool matcher to prevent first request failure
+      try {
+        await chatEngine['initializeToolMatcher']();
+        console.log('✅ Tool matcher initialized immediately after refresh');
+      } catch (matcherError) {
+        console.log('⚠️ Tool matcher initialization failed, continuing with current state');
+      }
+    } else {
+      console.log('ℹ️ No tools found in database');
+    }
+  } catch (error) {
+    console.log('ℹ️ Tool refresh before chat failed, continuing with current state');
+  }
+  
   // Use the full ConversationalEngine to process the message (user and assistant messages handled by API route)
   const response = await chatEngine.processMessage(currentConversationId, message, false, false);
   
