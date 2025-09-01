@@ -1,2 +1,4 @@
 /configs/*
 /configs/.env.example
+!/configs/backend.env.example
+!/configs/frontend.env.example
