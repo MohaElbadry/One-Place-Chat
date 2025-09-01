@@ -1,9 +1,9 @@
-// Environment configuration
+// Environment configuration with proper fallbacks
 export const config = {
   // API Configuration
   api: {
     baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
-    timeout: 30000, // 30 seconds
+    timeout: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000'),
     retryAttempts: 3,
   },
   
@@ -16,15 +16,16 @@ export const config = {
   
   // Feature Flags
   features: {
-    enableDebugMode: process.env.NODE_ENV === 'development',
-    enableErrorReporting: process.env.NODE_ENV === 'production',
-    enablePerformanceMonitoring: process.env.NODE_ENV === 'production',
+    enableDebugMode: process.env.NEXT_PUBLIC_ENABLE_DEBUG_MODE === 'true' || process.env.NODE_ENV === 'development',
+    enableErrorReporting: process.env.NEXT_PUBLIC_ENABLE_ERROR_REPORTING === 'true' || process.env.NODE_ENV === 'production',
+    enablePerformanceMonitoring: process.env.NEXT_PUBLIC_ENABLE_PERFORMANCE_MONITORING === 'true' || process.env.NODE_ENV === 'production',
+    enableAnalytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
   },
   
   // UI Configuration
   ui: {
-    maxMessageLength: 10000,
-    typingIndicatorDelay: 1000,
+    maxMessageLength: parseInt(process.env.NEXT_PUBLIC_MAX_MESSAGE_LENGTH || '10000'),
+    typingIndicatorDelay: parseInt(process.env.NEXT_PUBLIC_TYPING_INDICATOR_DELAY || '1000'),
     autoScrollThreshold: 100,
   }
 };
@@ -35,3 +36,24 @@ export const getAppName = () => config.app.name;
 export const getAppVersion = () => config.app.version;
 export const isDevelopment = () => config.app.environment === 'development';
 export const isProduction = () => config.app.environment === 'production';
+
+// Environment validation
+export const validateEnvironment = () => {
+  const requiredVars = [
+    'NEXT_PUBLIC_API_URL',
+    'NEXT_PUBLIC_APP_NAME'
+  ];
+  
+  const missing = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missing.length > 0) {
+    console.warn(`⚠️ Missing environment variables: ${missing.join(', ')}`);
+  }
+  
+  return missing.length === 0;
+};
+
+// Initialize validation
+if (typeof window === 'undefined') {
+  validateEnvironment();
+}

@@ -1,3 +1,16 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables based on NODE_ENV
+const environment = process.env.NODE_ENV || 'development';
+const envFile = environment === 'production' ? '.env.production' : '.env.development';
+
+// Load environment file
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// Load local overrides if they exist
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
+
 export interface ChromaDBConfig {
   host: string;
   port: number;
@@ -19,8 +32,8 @@ export const defaultChromaDBConfig: ChromaDBConfig = {
   port: 8000,
   path: 'http://localhost:8000',
   collectionNames: {
-    tools: 'tools',
-    conversations: 'conversations'
+    tools: 'oneplacechat_tools',
+    conversations: 'oneplacechat_conversations'
   },
   embeddingModel: 'text-embedding-ada-002',
   maxResults: 10,
@@ -31,7 +44,7 @@ export const defaultChromaDBConfig: ChromaDBConfig = {
 };
 
 export function getChromaDBConfig(): ChromaDBConfig {
-  // You can override defaults with environment variables
+  // Override defaults with environment variables
   return {
     ...defaultChromaDBConfig,
     host: process.env.CHROMADB_HOST || defaultChromaDBConfig.host,

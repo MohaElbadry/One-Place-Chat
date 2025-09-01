@@ -1,7 +1,17 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables based on NODE_ENV
+const environment = process.env.NODE_ENV || 'development';
+const envFile = environment === 'production' ? '.env.production' : '.env.development';
+
+// Load environment file
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// Load local overrides if they exist
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
+
+console.log(`🚀 Loading ${environment} environment from ${envFile}`);
 
 /**
  * Centralized application configuration
@@ -20,7 +30,7 @@ export const appConfig = {
   // API Configuration
   api: {
     port: parseInt(process.env.PORT || '3001'),
-    corsOrigin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000'),
     maxRequestSize: process.env.MAX_REQUEST_SIZE || '10mb',
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes

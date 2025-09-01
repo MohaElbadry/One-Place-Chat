@@ -1,0 +1,98 @@
+version: '3.8'
+
+# One-Place-Chat Docker Compose Configuration
+# Usage: ENVIRONMENT=production docker-compose up
+
+services:
+  # ChromaDB Vector Database
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: opc-chromadb
+    hostname: chromadb
+    ports:
+      - "8000:8000"
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - CHROMA_SERVER_AUTH_CREDENTIALS_FILE=
+      - CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER=
+      - CHROMA_SERVER_AUTH_PROVIDER=
+    volumes:
+      - opc_chromadb_data:/chroma/chroma
+    networks:
+      - opc_network
+    restart: unless-stopped
+    labels:
+      - "com.opc.service=chromadb"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # Backend API Service
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NODE_ENV: ${ENVIRONMENT:-production}
+    container_name: opc-backend
+    hostname: backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../configs/backend.env.${ENVIRONMENT:-production}
+    environment:
+      - NODE_ENV=${ENVIRONMENT:-production}
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - CHROMADB_PATH=http://chromadb:8000
+    networks:
+      - opc_network
+    depends_on:
+      - chromadb
+    restart: unless-stopped
+    labels:
+      - "com.opc.service=backend"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # Frontend Web Application
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NODE_ENV: ${ENVIRONMENT:-production}
+    container_name: opc-frontend
+    hostname: frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../configs/frontend.env.${ENVIRONMENT:-production}
+    environment:
+      - NODE_ENV=${ENVIRONMENT:-production}
+      - NEXT_PUBLIC_API_URL=http://backend:3001/api
+    networks:
+      - opc_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    labels:
+      - "com.opc.service=frontend"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+# Custom Network for Service Communication
+networks:
+  opc_network:
+    name: opc_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# Persistent Volumes
+volumes:
+  opc_chromadb_data:
+    name: opc_chromadb_data
+    driver: local

@@ -4,29 +4,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-node_modules
-npm-debug.log
-yarn-error.log
-.git
-.env
-.env.local
-.env.production
-Dockerfile
-.dockerignore
-README.md
-.nyc_output
-coverage
-.nycrc
-*.tsbuildinfo
-*.log
-logs
-dist
-# Include these only if you have them in your project
-.elasticbeanstalk
-.idea
-.vscode
-.nyc_output
-coverage
 
 # Build outputs
 dist
@@ -105,15 +82,6 @@ jspm_packages/
 .cache
 .parcel-cache
 
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
 # Serverless directories
 .serverless/
 
@@ -126,3 +94,9 @@ jspm_packages/
 # TernJS port file
 .tern-port
 
+# Docker files
+Dockerfile*
+.dockerignore
+
+# TypeScript build info
+*.tsbuildinfo
