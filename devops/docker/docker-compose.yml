@@ -1,8 +1,6 @@
 version: '3.8'
-
 # One-Place-Chat Docker Compose Configuration
 # Usage: ENVIRONMENT=production docker-compose up
-
 services:
   # ChromaDB Vector Database
   chromadb:
@@ -14,15 +12,19 @@ services:
     environment:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_HTTP_PORT=8000
-      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
-      - CHROMA_SERVER_AUTH_CREDENTIALS_FILE=
-      - CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER=
-      - CHROMA_SERVER_AUTH_PROVIDER=
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
     volumes:
       - opc_chromadb_data:/chroma/chroma
     networks:
       - opc_network
     restart: unless-stopped
+    # Fixed health check for ChromaDB
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "cat < /dev/null > /dev/tcp/localhost/8000"]      
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     labels:
       - "com.opc.service=chromadb"
       - "com.opc.environment=${ENVIRONMENT:-production}"
@@ -49,8 +51,22 @@ services:
     networks:
       - opc_network
     depends_on:
-      - chromadb
+      chromadb:
+        condition: service_healthy
     restart: unless-stopped
+    # Health check for Backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Structured logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - "com.opc.service=backend"
       - "com.opc.environment=${ENVIRONMENT:-production}"
@@ -75,8 +91,22 @@ services:
     networks:
       - opc_network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    # Health check for Frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Structured logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - "com.opc.service=frontend"
       - "com.opc.environment=${ENVIRONMENT:-production}"

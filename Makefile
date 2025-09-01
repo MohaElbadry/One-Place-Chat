@@ -28,9 +28,37 @@ help: ## Show this help message
 	@echo "$(YELLOW)Environment:$(NC) $(ENVIRONMENT)"
 	@echo "$(YELLOW)Usage:$(NC) make <target> [ENVIRONMENT=production]"
 
+# Environment Setup Commands
+.PHONY: setup-env
+setup-env: ## Setup environment files from configs
+	@echo "$(GREEN)🔧 Setting up environment files...$(NC)"
+	@./devops/scripts/setup-env.sh
+
+.PHONY: setup-env-backend
+setup-env-backend: ## Setup backend environment files
+	@echo "$(GREEN)🔧 Setting up backend environment files...$(NC)"
+	@mkdir -p backend
+	@cp devops/configs/backend.env.example backend/.env.development
+	@cp devops/configs/backend.env.example backend/.env.production
+	@echo "$(GREEN)✅ Backend environment files created!$(NC)"
+	@echo "$(YELLOW)📝 Edit backend/.env.development and backend/.env.production with your API keys$(NC)"
+
+.PHONY: setup-env-frontend
+setup-env-frontend: ## Setup frontend environment files
+	@echo "$(GREEN)🔧 Setting up frontend environment files...$(NC)"
+	@mkdir -p frontend
+	@cp devops/configs/frontend.env.example frontend/.env.development
+	@cp devops/configs/frontend.env.example frontend/.env.production
+	@echo "$(GREEN)✅ Frontend environment files created!$(NC)"
+	@echo "$(YELLOW)📝 Edit frontend/.env.development and frontend/.env.production if needed$(NC)"
+
+.PHONY: setup-env-all
+setup-env-all: setup-env-backend setup-env-frontend ## Setup all environment files
+	@echo "$(GREEN)✅ All environment files setup complete!$(NC)"
+
 # Development Commands
 .PHONY: dev
-dev: ## Start development environment
+dev: setup-env-all ## Start development environment
 	@echo "$(GREEN)🚀 Starting development environment...$(NC)"
 	@ENVIRONMENT=development docker-compose -f $(COMPOSE_FILE) up -d
 	@echo "$(GREEN)✅ Development environment started!$(NC)"
@@ -183,12 +211,67 @@ shell-chromadb: ## Open shell in ChromaDB container
 .PHONY: health
 health: ## Check service health
 	@echo "$(BLUE)🏥 Checking service health...$(NC)"
-	@echo "$(YELLOW)ChromaDB:$(NC)"
-	@curl -s http://localhost:8000/api/v2/heartbeat || echo "$(RED)❌ ChromaDB not responding$(NC)"
-	@echo "$(YELLOW)Backend:$(NC)"
-	@curl -s http://localhost:3001/api/health || echo "$(RED)❌ Backend not responding$(NC)"
-	@echo "$(YELLOW)Frontend:$(NC)"
-	@curl -s http://localhost:3000 | head -1 || echo "$(RED)❌ Frontend not responding$(NC)"
+	@chmod +x devops/scripts/health-check.sh
+	@./devops/scripts/health-check.sh
+
+# Monitoring Commands
+.PHONY: monitoring
+monitoring: ## Start monitoring stack (Prometheus + Grafana)
+	@echo "$(GREEN)📊 Starting monitoring stack...$(NC)"
+	@ENVIRONMENT=$(ENVIRONMENT) docker-compose -f $(COMPOSE_FILE) -f devops/docker/docker-compose.monitoring.yml up -d
+	@echo "$(GREEN)✅ Monitoring stack started!$(NC)"
+	@echo "$(BLUE)Prometheus:$(NC) http://localhost:9090"
+	@echo "$(BLUE)Grafana:$(NC) http://localhost:3002 (admin/admin123)"
+	@echo "$(BLUE)cAdvisor:$(NC) http://localhost:8080"
+	@echo "$(BLUE)Node Exporter:$(NC) http://localhost:9100"
+
+.PHONY: monitoring-down
+monitoring-down: ## Stop monitoring stack
+	@echo "$(YELLOW)🛑 Stopping monitoring stack...$(NC)"
+	@ENVIRONMENT=$(ENVIRONMENT) docker-compose -f $(COMPOSE_FILE) -f devops/docker/docker-compose.monitoring.yml down
+	@echo "$(GREEN)✅ Monitoring stack stopped!$(NC)"
+
+.PHONY: monitoring-logs
+monitoring-logs: ## View monitoring logs
+	@echo "$(BLUE)📋 Monitoring logs:$(NC)"
+	@ENVIRONMENT=$(ENVIRONMENT) docker-compose -f $(COMPOSE_FILE) -f devops/docker/docker-compose.monitoring.yml logs -f
+
+.PHONY: grafana
+grafana: ## Open Grafana in browser
+	@echo "$(BLUE)🌐 Opening Grafana...$(NC)"
+	@xdg-open http://localhost:3002 2>/dev/null || open http://localhost:3002 2>/dev/null || echo "$(YELLOW)Please open: http://localhost:3002$(NC)"
+
+.PHONY: prometheus
+prometheus: ## Open Prometheus in browser
+	@echo "$(BLUE)🌐 Opening Prometheus...$(NC)"
+	@xdg-open http://localhost:9090 2>/dev/null || open http://localhost:9090 2>/dev/null || echo "$(YELLOW)Please open: http://localhost:9090$(NC)"
+
+.PHONY: health-detailed
+health-detailed: ## Detailed health check with resources
+	@echo "$(BLUE)🏥 Detailed health check...$(NC)"
+	@chmod +x devops/scripts/health-check.sh
+	@./devops/scripts/health-check.sh
+	@echo ""
+	@echo "$(BLUE)📊 Resource Usage:$(NC)"
+	@docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+
+.PHONY: health-chromadb
+health-chromadb: ## Check ChromaDB health only
+	@echo "$(BLUE)🔍 Checking ChromaDB health...$(NC)"
+	@chmod +x devops/scripts/health-check.sh
+	@./devops/scripts/health-check.sh chromadb
+
+.PHONY: health-backend
+health-backend: ## Check backend health only
+	@echo "$(BLUE)🔍 Checking backend health...$(NC)"
+	@chmod +x devops/scripts/health-check.sh
+	@./devops/scripts/health-check.sh backend
+
+.PHONY: health-frontend
+health-frontend: ## Check frontend health only
+	@echo "$(BLUE)🔍 Checking frontend health...$(NC)"
+	@chmod +x devops/scripts/health-check.sh
+	@./devops/scripts/health-check.sh frontend
 
 # Network Commands
 .PHONY: network-info
