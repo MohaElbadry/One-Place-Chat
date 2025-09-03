@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { Express } from 'express';
-import { createServer } from '../../src/api/server';
+import express from 'express';
+import { healthRouter } from '../../../src/api/routes/health.js';
 
 describe('Health API Integration Tests', () => {
   let app: Express;
@@ -10,16 +11,12 @@ describe('Health API Integration Tests', () => {
     process.env.NODE_ENV = 'test';
     process.env.PORT = '0'; // Use random port for testing
     
-    app = await createServer();
+    app = express();
+    app.use('/api/health', healthRouter);
   });
 
   afterAll(async () => {
-    // Cleanup
-    if (app) {
-      await new Promise<void>((resolve) => {
-        app.close(() => resolve());
-      });
-    }
+    // Cleanup - no need to close Express app
   });
 
   describe('GET /api/health', () => {
