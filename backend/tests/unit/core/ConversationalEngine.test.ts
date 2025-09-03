@@ -1,8 +1,8 @@
-import { ConversationalEngine } from '../../../src/core/ConversationalEngine';
-import { ChromaDBService } from '../../../src/database/ChromaDBService';
-import { ChromaDBToolMatcher } from '../../../src/tools/ChromaDBToolMatcher';
-import { CurlCommandExecutor } from '../../../src/tools/CurlCommandExecutor';
-import { LLMProvider } from '../../../src/core/LLMProvider';
+import { ConversationalEngine } from '../../../src/core/ConversationalEngine.ts';
+import { ChromaDBService } from '../../../src/database/ChromaDBService.ts';
+import { ChromaDBToolMatcher } from '../../../src/tools/ChromaDBToolMatcher.ts';
+import { CurlCommandExecutor } from '../../../src/tools/CurlCommandExecutor.ts';
+import { LLMProvider } from '../../../src/core/LLMProvider.ts';
 
 // Mock dependencies
 jest.mock('../../../src/database/ChromaDBService');

@@ -114,7 +114,7 @@ router.get('/', async (req, res) => {
       });
     }
     
-    const tools = await toolLoader.getTools(limit, offset);
+    const tools = await toolLoader.getTools();
     const totalCount = await toolLoader.getToolCount();
     
     res.json({

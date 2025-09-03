@@ -1,7 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 
+// API version status types
+type ApiStatus = 'stable' | 'beta' | 'deprecated' | 'sunset';
+
 // API version configuration
-export const API_VERSIONS = {
+export const API_VERSIONS: Record<string, {
+  version: string;
+  status: ApiStatus;
+  releaseDate: string;
+  deprecationDate: string | null;
+  sunsetDate: string | null;
+}> = {
   v1: {
     version: '1.0.0',
     status: 'stable',
@@ -16,7 +25,7 @@ export const API_VERSIONS = {
     deprecationDate: null,
     sunsetDate: null,
   },
-} as const;
+};
 
 export type ApiVersion = keyof typeof API_VERSIONS;
 

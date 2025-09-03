@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { Express } from 'express';
-import { createServer } from '../../src/api/server';
+import serverApp from '../../src/api/server';
 
 describe('Tools API Integration Tests', () => {
   let app: Express;
@@ -10,13 +10,14 @@ describe('Tools API Integration Tests', () => {
     process.env.NODE_ENV = 'test';
     process.env.PORT = '0';
     
-    app = await createServer();
+    app = serverApp;
   });
 
   afterAll(async () => {
     if (app) {
       await new Promise<void>((resolve) => {
-        app.close(() => resolve());
+        // Express app doesn't need to be closed
+        resolve();
       });
     }
   });
