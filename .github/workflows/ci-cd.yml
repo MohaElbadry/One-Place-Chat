@@ -99,19 +99,12 @@ jobs:
           cd frontend
           npm ci
 
-      - name: Wait for ChromaDB
-        run: |
-          timeout 60 bash -c 'until curl -f http://localhost:8000/api/v1/collections; do sleep 2; done'
-
       - name: Run backend tests
         run: |
           cd backend
           npm run test:unit
         env:
           NODE_ENV: test
-          CHROMADB_HOST: localhost
-          CHROMADB_PORT: 8000
-          CHROMADB_PATH: http://localhost:8000
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Run frontend tests
@@ -152,10 +145,11 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
 
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
+      # Note: CodeQL upload disabled due to repository permissions
+      # - name: Upload Trivy scan results
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
 
       - name: Run npm audit
         run: |
