@@ -24,8 +24,7 @@
     "allowJs": true,
     "checkJs": false,
     "noImplicitAny": false,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": true
+    "isolatedModules": true
   },
   "ts-node": {
     "esm": true,
