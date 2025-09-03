@@ -18,7 +18,7 @@
     "test:e2e": "jest --testPathPattern=e2e",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "type-check": "tsc --noEmit -p tsconfig.test.json",
+    "type-check": "tsc --noEmit",
     "clean": "rm -rf dist && rm -rf node_modules",
     "build:prod": "npm run build && npm run clean:dist",
     "clean:dist": "find dist -name '*.map' -delete && find dist -name '*.d.ts' -delete"
