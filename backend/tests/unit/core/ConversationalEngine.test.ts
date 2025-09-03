@@ -1,14 +1,14 @@
-import { ConversationalEngine } from '../../../src/core/ConversationalEngine';
-import { ChromaDBService } from '../../../src/database/ChromaDBService';
-import { ChromaDBToolMatcher } from '../../../src/tools/ChromaDBToolMatcher';
-import { CurlCommandExecutor } from '../../../src/tools/CurlCommandExecutor';
-import { LLMProvider } from '../../../src/core/LLMProvider';
+import { ConversationalEngine } from '../../../src/core/ConversationalEngine.js';
+import { ChromaDBService } from '../../../src/database/ChromaDBService.js';
+import { ChromaDBToolMatcher } from '../../../src/tools/ChromaDBToolMatcher.js';
+import { CurlCommandExecutor } from '../../../src/tools/CurlCommandExecutor.js';
+import { LLMProvider } from '../../../src/core/LLMProvider.js';
 
 // Mock dependencies
-jest.mock('../../../src/database/ChromaDBService');
-jest.mock('../../../src/tools/ChromaDBToolMatcher');
-jest.mock('../../../src/tools/CurlCommandExecutor');
-jest.mock('../../../src/core/LLMProvider');
+jest.mock('../../../src/database/ChromaDBService.js');
+jest.mock('../../../src/tools/ChromaDBToolMatcher.js');
+jest.mock('../../../src/tools/CurlCommandExecutor.js');
+jest.mock('../../../src/core/LLMProvider.js');
 
 describe('ConversationalEngine', () => {
   let engine: ConversationalEngine;
