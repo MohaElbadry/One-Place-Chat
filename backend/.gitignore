@@ -122,8 +122,7 @@ public
 # Mac system files
 .DS_Store
 
-# npm package lock
-package-lock.json
+# yarn lock (npm package-lock.json should be committed)
 yarn.lock
 
 # Optional npm cache directory
