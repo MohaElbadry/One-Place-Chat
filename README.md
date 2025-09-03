@@ -72,6 +72,7 @@ Learn MCP
 
 Learn CI/CD
 
+> No Unit Tests: Jest configured but no actual tests written
 
 
 > [!Problem]

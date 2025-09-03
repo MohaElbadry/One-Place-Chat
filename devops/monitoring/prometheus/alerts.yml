@@ -1,0 +1,126 @@
+groups:
+  - name: one-place-chat-critical
+    rules:
+      # Service Down Alerts
+      - alert: ServiceDown
+        expr: up{job=~"chromadb|backend|frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: "platform"
+        annotations:
+          summary: "🚨 Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+          runbook_url: "https://docs.yourapp.com/runbooks/service-down"
+
+      # ChromaDB Connection Issues
+      - alert: ChromaDBConnectionError
+        expr: increase(http_requests_total{job="chromadb",status=~"5.."}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: "platform"
+        annotations:
+          summary: "🚨 ChromaDB connection errors"
+          description: "ChromaDB is returning 5xx errors"
+          runbook_url: "https://docs.yourapp.com/runbooks/chromadb-errors"
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job=~"backend|frontend",status=~"5.."}[5m]) / rate(http_requests_total{job=~"backend|frontend"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: "platform"
+        annotations:
+          summary: "🚨 High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.job }}"
+          runbook_url: "https://docs.yourapp.com/runbooks/high-error-rate"
+
+  - name: one-place-chat-warning
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name=~"opc-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: "platform"
+        annotations:
+          summary: "⚠️ High CPU usage on {{ $labels.name }}"
+          description: "Container {{ $labels.name }} is using {{ $value | humanizePercentage }} CPU"
+          runbook_url: "https://docs.yourapp.com/runbooks/high-cpu"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{name=~"opc-.*"} / container_spec_memory_limit_bytes{name=~"opc-.*"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: "platform"
+        annotations:
+          summary: "⚠️ High memory usage on {{ $labels.name }}"
+          description: "Container {{ $labels.name }} is using {{ $value | humanizePercentage }} memory"
+          runbook_url: "https://docs.yourapp.com/runbooks/high-memory"
+
+      # Backend API Errors
+      - alert: BackendAPIErrors
+        expr: increase(http_requests_total{job="backend",status=~"5.."}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: "platform"
+        annotations:
+          summary: "⚠️ Backend API errors"
+          description: "Backend is returning {{ $value }} 5xx errors in the last 5 minutes"
+          runbook_url: "https://docs.yourapp.com/runbooks/backend-errors"
+
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"backend|frontend"}[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          team: "platform"
+        annotations:
+          summary: "⚠️ High response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.job }}"
+          runbook_url: "https://docs.yourapp.com/runbooks/high-response-time"
+
+  - name: one-place-chat-info
+    rules:
+      # Disk Space Warning
+      - alert: DiskSpaceWarning
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          team: "platform"
+        annotations:
+          summary: "💾 Low disk space"
+          description: "Disk space is {{ $value | humanizePercentage }} full"
+          runbook_url: "https://docs.yourapp.com/runbooks/disk-space"
+
+      # High Request Rate
+      - alert: HighRequestRate
+        expr: rate(http_requests_total{job=~"backend|frontend"}[5m]) > 100
+        for: 5m
+        labels:
+          severity: info
+          team: "platform"
+        annotations:
+          summary: "📈 High request rate on {{ $labels.job }}"
+          description: "Request rate is {{ $value }} requests/second on {{ $labels.job }}"
+          runbook_url: "https://docs.yourapp.com/runbooks/high-request-rate"
+
+      # ChromaDB Collection Size
+      - alert: ChromaDBCollectionSize
+        expr: chromadb_collection_size_bytes > 1000000000  # 1GB
+        for: 5m
+        labels:
+          severity: info
+          team: "platform"
+        annotations:
+          summary: "📊 Large ChromaDB collection"
+          description: "ChromaDB collection size is {{ $value | humanizeBytes }}"
+          runbook_url: "https://docs.yourapp.com/runbooks/chromadb-size"

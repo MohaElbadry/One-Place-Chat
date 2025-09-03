@@ -41,6 +41,126 @@ async function ensureInitialized() {
   }
 }
 
+/**
+ * @swagger
+ * /api/tools:
+ *   get:
+ *     summary: Get list of available tools
+ *     description: Returns a paginated list of all available tools
+ *     tags: [Tools]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of tools to return per page
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *         description: Number of tools to skip
+ *     responses:
+ *       200:
+ *         description: Tools retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ToolList'
+ *             example:
+ *               success: true
+ *               data:
+ *                 - id: "tool-123"
+ *                   name: "Get Weather"
+ *                   description: "Get current weather information"
+ *                   method: "GET"
+ *                   path: "/weather"
+ *                   tags: ["weather", "location"]
+ *                   deprecated: false
+ *                   title: "Weather API"
+ *                   readOnly: true
+ *                   openWorld: false
+ *               count: 25
+ *               limit: 10
+ *               offset: 0
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// GET /api/tools - Get list of available tools
+router.get('/', async (req, res) => {
+  try {
+    await ensureInitialized();
+    
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    if (limit < 1 || limit > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Limit must be between 1 and 100'
+      });
+    }
+    
+    if (offset < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Offset must be non-negative'
+      });
+    }
+    
+    const tools = await toolLoader.getTools(limit, offset);
+    const totalCount = await toolLoader.getToolCount();
+    
+    res.json({
+      success: true,
+      data: tools,
+      count: totalCount,
+      limit,
+      offset
+    });
+  } catch (error) {
+    console.error('Error getting tools:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve tools',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/tools/health:
+ *   get:
+ *     summary: Get tools health status
+ *     description: Returns the health status and statistics of the tools system
+ *     tags: [Tools]
+ *     responses:
+ *       200:
+ *         description: Tools health status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ToolStats'
+ *             example:
+ *               success: true
+ *               data:
+ *                 totalTools: 25
+ *                 isLoaded: true
+ *                 lastUpdated: "2024-12-01T10:00:00Z"
+ *                 categories:
+ *                   weather: 3
+ *                   petstore: 5
+ *                   trello: 8
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/tools/health - Get current tool status and health
 router.get('/health', async (req, res) => {
   try {

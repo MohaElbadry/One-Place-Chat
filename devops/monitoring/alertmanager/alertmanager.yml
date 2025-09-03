@@ -1,0 +1,130 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@yourapp.com'
+  smtp_auth_username: 'alerts@yourapp.com'
+  smtp_auth_password: 'your-email-password'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+  routes:
+  - match:
+      severity: critical
+    receiver: 'critical-alerts'
+    group_wait: 5s
+    repeat_interval: 5m
+  - match:
+      severity: warning
+    receiver: 'warning-alerts'
+    group_wait: 30s
+    repeat_interval: 30m
+  - match:
+      severity: info
+    receiver: 'info-alerts'
+    group_wait: 1m
+    repeat_interval: 2h
+
+receivers:
+- name: 'web.hook'
+  webhook_configs:
+  - url: 'http://localhost:5001/'
+
+- name: 'critical-alerts'
+  slack_configs:
+  - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    channel: '#alerts-critical'
+    title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+    text: |
+      {{ range .Alerts }}
+      *Alert:* {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+      *Severity:* {{ .Labels.severity }}
+      *Service:* {{ .Labels.job }}
+      *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      {{ if .Annotations.runbook_url }}
+      *Runbook:* {{ .Annotations.runbook_url }}
+      {{ end }}
+      {{ end }}
+    send_resolved: true
+  email_configs:
+  - to: 'oncall@yourapp.com'
+    subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+    body: |
+      {{ range .Alerts }}
+      Alert: {{ .Annotations.summary }}
+      Description: {{ .Annotations.description }}
+      Severity: {{ .Labels.severity }}
+      Service: {{ .Labels.job }}
+      Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      {{ if .Annotations.runbook_url }}
+      Runbook: {{ .Annotations.runbook_url }}
+      {{ end }}
+      {{ end }}
+    send_resolved: true
+  pagerduty_configs:
+  - routing_key: 'YOUR_PAGERDUTY_ROUTING_KEY'
+    description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+    severity: 'critical'
+    send_resolved: true
+
+- name: 'warning-alerts'
+  slack_configs:
+  - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    channel: '#alerts-warning'
+    title: '⚠️ Warning Alert: {{ .GroupLabels.alertname }}'
+    text: |
+      {{ range .Alerts }}
+      *Alert:* {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+      *Severity:* {{ .Labels.severity }}
+      *Service:* {{ .Labels.job }}
+      *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      {{ if .Annotations.runbook_url }}
+      *Runbook:* {{ .Annotations.runbook_url }}
+      {{ end }}
+      {{ end }}
+    send_resolved: true
+  email_configs:
+  - to: 'team@yourapp.com'
+    subject: '⚠️ WARNING: {{ .GroupLabels.alertname }}'
+    body: |
+      {{ range .Alerts }}
+      Alert: {{ .Annotations.summary }}
+      Description: {{ .Annotations.description }}
+      Severity: {{ .Labels.severity }}
+      Service: {{ .Labels.job }}
+      Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      {{ if .Annotations.runbook_url }}
+      Runbook: {{ .Annotations.runbook_url }}
+      {{ end }}
+      {{ end }}
+    send_resolved: true
+
+- name: 'info-alerts'
+  slack_configs:
+  - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    channel: '#alerts-info'
+    title: '📊 Info Alert: {{ .GroupLabels.alertname }}'
+    text: |
+      {{ range .Alerts }}
+      *Alert:* {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+      *Service:* {{ .Labels.job }}
+      *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      {{ end }}
+    send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'cluster', 'service']

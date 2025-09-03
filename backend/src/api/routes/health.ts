@@ -4,6 +4,36 @@ import { ChromaDBService } from '../../database/ChromaDBService.js';
 const router = Router();
 const chromaService = new ChromaDBService();
 
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Get basic health status
+ *     description: Returns the basic health status of the API
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Health status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/HealthStatus'
+ *             example:
+ *               success: true
+ *               data:
+ *                 status: "healthy"
+ *                 timestamp: "2024-12-01T10:00:00Z"
+ *                 uptime: 3600
+ *                 environment: "production"
+ *                 version: "1.0.0"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/health - Basic health check
 router.get('/', (req, res) => {
   res.json({
@@ -18,6 +48,44 @@ router.get('/', (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/health/detailed:
+ *   get:
+ *     summary: Get detailed health status
+ *     description: Returns detailed health status including service dependencies
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Detailed health status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/DetailedHealthStatus'
+ *             example:
+ *               success: true
+ *               data:
+ *                 status: "healthy"
+ *                 timestamp: "2024-12-01T10:00:00Z"
+ *                 uptime: 3600
+ *                 environment: "production"
+ *                 version: "1.0.0"
+ *                 services:
+ *                   chromadb: "healthy"
+ *                   memory:
+ *                     used: 128
+ *                     total: 512
+ *                     external: 64
+ *                   platform: "linux"
+ *                   nodeVersion: "v20.10.0"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // GET /api/health/detailed - Detailed health check with service status
 router.get('/detailed', async (req, res) => {
   try {
@@ -65,6 +133,49 @@ router.get('/detailed', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/health/ready:
+ *   get:
+ *     summary: Get readiness status
+ *     description: Returns readiness status for Kubernetes readiness probes
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Success'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                           example: "ready"
+ *                         timestamp:
+ *                           type: string
+ *                           format: date-time
+ *                         services:
+ *                           type: object
+ *                           properties:
+ *                             chromadb:
+ *                               type: string
+ *                               example: "ready"
+ *       503:
+ *         description: Service is not ready
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Service not ready"
+ *               message: "ChromaDB service is not available"
+ */
 // GET /api/health/ready - Readiness probe
 router.get('/ready', async (req, res) => {
   try {

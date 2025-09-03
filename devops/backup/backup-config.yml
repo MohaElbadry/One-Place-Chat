@@ -1,0 +1,145 @@
+# One-Place-Chat Backup Configuration
+# This file defines backup policies and schedules
+
+backup:
+  # General settings
+  enabled: true
+  environment: "production"
+  
+  # Backup types and schedules
+  schedules:
+    # Full backup - daily at 2 AM
+    full:
+      enabled: true
+      cron: "0 2 * * *"
+      retention_days: 7
+      compression: true
+      
+    # ChromaDB backup - every 6 hours
+    chromadb:
+      enabled: true
+      cron: "0 */6 * * *"
+      retention_days: 3
+      compression: true
+      
+    # Application data backup - daily at 3 AM
+    application:
+      enabled: true
+      cron: "0 3 * * *"
+      retention_days: 14
+      compression: true
+      
+    # Docker volumes backup - weekly on Sunday at 1 AM
+    volumes:
+      enabled: true
+      cron: "0 1 * * 0"
+      retention_days: 30
+      compression: true
+
+  # Storage settings
+  storage:
+    local:
+      enabled: true
+      path: "/opt/backups/one-place-chat"
+      max_size_gb: 100
+      
+    s3:
+      enabled: false
+      bucket: "your-backup-bucket"
+      region: "us-east-1"
+      prefix: "one-place-chat/backups/"
+      
+    gcs:
+      enabled: false
+      bucket: "your-backup-bucket"
+      prefix: "one-place-chat/backups/"
+
+  # Notification settings
+  notifications:
+    slack:
+      enabled: true
+      webhook_url: "${SLACK_WEBHOOK}"
+      channels:
+        success: "#backups"
+        failure: "#alerts"
+        
+    email:
+      enabled: false
+      smtp_host: "smtp.gmail.com"
+      smtp_port: 587
+      username: "backups@yourapp.com"
+      password: "${EMAIL_PASSWORD}"
+      recipients:
+        - "admin@yourapp.com"
+        - "devops@yourapp.com"
+
+  # Backup validation
+  validation:
+    enabled: true
+    integrity_check: true
+    size_check: true
+    manifest_check: true
+
+  # Cleanup settings
+  cleanup:
+    enabled: true
+    old_backups: true
+    temp_files: true
+    log_rotation: true
+    max_log_size_mb: 100
+
+# Restore settings
+restore:
+  # Safety settings
+  require_confirmation: true
+  backup_verification: true
+  service_stop: true
+  
+  # Restore options
+  options:
+    chromadb:
+      stop_services: true
+      backup_existing: true
+      
+    application:
+      stop_services: false
+      backup_existing: true
+      
+    volumes:
+      stop_services: true
+      backup_existing: true
+
+# Monitoring settings
+monitoring:
+  enabled: true
+  metrics:
+    backup_duration: true
+    backup_size: true
+    backup_success_rate: true
+    restore_duration: true
+    
+  alerts:
+    backup_failure: true
+    restore_failure: true
+    disk_space_low: true
+    backup_size_anomaly: true
+
+# Security settings
+security:
+  encryption:
+    enabled: false
+    algorithm: "AES-256-GCM"
+    key_file: "/etc/opc/backup.key"
+    
+  access_control:
+    backup_user: "backup"
+    restore_user: "admin"
+    file_permissions: "600"
+    
+  sanitization:
+    remove_secrets: true
+    sanitize_env_files: true
+    exclude_sensitive_paths:
+      - "**/secrets/**"
+      - "**/keys/**"
+      - "**/credentials/**"

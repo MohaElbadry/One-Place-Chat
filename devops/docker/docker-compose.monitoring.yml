@@ -1,0 +1,181 @@
+version: '3.8'
+
+# One-Place-Chat Monitoring Stack
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+services:
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: opc-prometheus
+    hostname: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../../devops/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../../devops/monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - opc_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - opc_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    labels:
+      - "com.opc.service=prometheus"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: opc-grafana
+    hostname: grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - opc_grafana_data:/var/lib/grafana
+      - ../../devops/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - opc_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    labels:
+      - "com.opc.service=grafana"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: opc-node-exporter
+    hostname: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - opc_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+    labels:
+      - "com.opc.service=node-exporter"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # cAdvisor for container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: opc-cadvisor
+    hostname: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    networks:
+      - opc_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    labels:
+      - "com.opc.service=cadvisor"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+  # Alertmanager for alert handling
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: opc-alertmanager
+    hostname: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ../../devops/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - opc_alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--web.route-prefix=/'
+    networks:
+      - opc_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    labels:
+      - "com.opc.service=alertmanager"
+      - "com.opc.environment=${ENVIRONMENT:-production}"
+
+# Volumes for monitoring data
+volumes:
+  opc_prometheus_data:
+    name: opc_prometheus_data
+    driver: local
+  opc_grafana_data:
+    name: opc_grafana_data
+    driver: local
+  opc_alertmanager_data:
+    name: opc_alertmanager_data
+    driver: local

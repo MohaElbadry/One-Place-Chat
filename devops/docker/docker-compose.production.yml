@@ -1,0 +1,164 @@
+version: '3.8'
+
+# Production Environment Override
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
+
+services:
+  backend:
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=warn
+      - ENABLE_DEBUG_ROUTES=false
+      - ENABLE_SWAGGER=false
+      - ENABLE_HELMET=true
+      - ENABLE_CORS=false
+      - ENABLE_RATE_LIMIT=true
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX=100
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    labels:
+      - "com.opc.environment=production"
+      - "com.opc.service=backend"
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.yourapp.com`)"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+
+  frontend:
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.yourapp.com/api
+      - NEXT_PUBLIC_ENVIRONMENT=production
+      - NEXT_PUBLIC_ENABLE_DEBUG_MODE=false
+      - NEXT_PUBLIC_ENABLE_ANALYTICS=true
+      - NEXT_PUBLIC_ENABLE_ERROR_REPORTING=true
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    labels:
+      - "com.opc.environment=production"
+      - "com.opc.service=frontend"
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`yourapp.com`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+
+  chromadb:
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+    labels:
+      - "com.opc.environment=production"
+      - "com.opc.service=chromadb"
+
+  # Production monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: opc-prometheus-prod
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../../devops/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../../devops/monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - opc_prometheus_data_prod:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - opc_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    labels:
+      - "com.opc.environment=production"
+      - "com.opc.service=prometheus"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: opc-grafana-prod
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - opc_grafana_data_prod:/var/lib/grafana
+      - ../../devops/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - opc_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    labels:
+      - "com.opc.environment=production"
+      - "com.opc.service=grafana"
+
+# Production-specific volumes
+volumes:
+  opc_chromadb_data:
+    name: opc_chromadb_data_production
+    driver: local
+  opc_prometheus_data_prod:
+    name: opc_prometheus_data_production
+    driver: local
+  opc_grafana_data_prod:
+    name: opc_grafana_data_production
+    driver: local

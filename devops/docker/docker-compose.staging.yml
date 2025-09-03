@@ -1,0 +1,68 @@
+version: '3.8'
+
+# Staging Environment Override
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+services:
+  backend:
+    environment:
+      - NODE_ENV=staging
+      - LOG_LEVEL=info
+      - ENABLE_DEBUG_ROUTES=false
+      - ENABLE_SWAGGER=true
+      - ENABLE_HELMET=true
+      - ENABLE_CORS=true
+      - CORS_ORIGIN=https://staging.yourapp.com
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    labels:
+      - "com.opc.environment=staging"
+      - "com.opc.service=backend"
+
+  frontend:
+    environment:
+      - NODE_ENV=staging
+      - NEXT_PUBLIC_API_URL=https://staging-api.yourapp.com/api
+      - NEXT_PUBLIC_ENVIRONMENT=staging
+      - NEXT_PUBLIC_ENABLE_DEBUG_MODE=false
+      - NEXT_PUBLIC_ENABLE_ANALYTICS=true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    labels:
+      - "com.opc.environment=staging"
+      - "com.opc.service=frontend"
+
+  chromadb:
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    labels:
+      - "com.opc.environment=staging"
+      - "com.opc.service=chromadb"
+
+# Staging-specific volumes
+volumes:
+  opc_chromadb_data:
+    name: opc_chromadb_data_staging
+    driver: local

@@ -6,6 +6,12 @@ import dotenv from 'dotenv';
 import { toolsRouter } from './routes/tools.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { healthRouter } from './routes/health.js';
+import { setupSwagger } from './swagger.js';
+import { 
+  versionMiddleware, 
+  compatibilityMiddleware, 
+  getVersionInfo 
+} from './middleware/versioning.js';
 
 // Load environment variables
 dotenv.config();
@@ -23,21 +29,43 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// API versioning middleware
+app.use(versionMiddleware);
+app.use(compatibilityMiddleware);
+
+// API version info endpoint
+app.get('/api/version', getVersionInfo);
+
 // Routes
 app.use('/api/tools', toolsRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/health', healthRouter);
 
+// Setup Swagger documentation
+setupSwagger(app);
+
 // Root endpoint
 app.get('/', (req, res) => {
+  const apiVersion = (req as any).apiVersion;
+  const versionInfo = (req as any).versionInfo;
+  
   res.json({
     message: 'One-Place-Chat API Server',
-    version: '1.0.0',
+    version: versionInfo.version,
+    apiVersion: apiVersion,
+    status: versionInfo.status,
     endpoints: {
       tools: '/api/tools',
       'tools-upload': '/api/tools/upload',
       conversations: '/api/conversations',
-      health: '/api/health'
+      health: '/api/health',
+      version: '/api/version',
+      documentation: '/api-docs'
+    },
+    documentation: {
+      swagger: '/api-docs',
+      openapi: '/api-docs.json',
+      yaml: '/api-docs.yaml'
     }
   });
 });
