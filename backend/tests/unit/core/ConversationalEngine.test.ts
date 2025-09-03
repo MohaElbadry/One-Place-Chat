@@ -3,12 +3,17 @@ import { ChromaDBService } from '../../../src/database/ChromaDBService.js';
 import { ChromaDBToolMatcher } from '../../../src/tools/ChromaDBToolMatcher.js';
 import { CurlCommandExecutor } from '../../../src/tools/CurlCommandExecutor.js';
 import { LLMProvider } from '../../../src/core/LLMProvider.js';
+import { ChromaDBToolLoader } from '../../../src/tools/ChromaDBToolLoader.js';
 
 // Mock dependencies
 jest.mock('../../../src/database/ChromaDBService.js');
 jest.mock('../../../src/tools/ChromaDBToolMatcher.js');
 jest.mock('../../../src/tools/CurlCommandExecutor.js');
 jest.mock('../../../src/core/LLMProvider.js');
+jest.mock('../../../src/tools/ChromaDBToolLoader.js');
+
+// Mock the ChromaDBToolLoader constructor
+const MockedChromaDBToolLoader = ChromaDBToolLoader as jest.MockedClass<typeof ChromaDBToolLoader>;
 
 describe('ConversationalEngine', () => {
   let engine: ConversationalEngine;
@@ -16,6 +21,7 @@ describe('ConversationalEngine', () => {
   let mockToolMatcher: jest.Mocked<ChromaDBToolMatcher>;
   let mockExecutor: jest.Mocked<CurlCommandExecutor>;
   let mockLLM: jest.Mocked<LLMProvider>;
+  let mockToolLoader: jest.Mocked<ChromaDBToolLoader>;
 
   beforeEach(() => {
     // Reset mocks
@@ -26,10 +32,15 @@ describe('ConversationalEngine', () => {
     mockToolMatcher = new ChromaDBToolMatcher() as jest.Mocked<ChromaDBToolMatcher>;
     mockExecutor = new CurlCommandExecutor() as jest.Mocked<CurlCommandExecutor>;
     mockLLM = new LLMProvider({} as any) as jest.Mocked<LLMProvider>;
+    mockToolLoader = new ChromaDBToolLoader() as jest.Mocked<ChromaDBToolLoader>;
 
     // Mock initialization
     mockChromaService.initialize = jest.fn().mockResolvedValue(undefined);
     mockToolMatcher.initialize = jest.fn().mockResolvedValue(undefined);
+    mockToolLoader.loadTools = jest.fn().mockResolvedValue([]);
+    
+    // Mock the ChromaDBToolLoader constructor
+    MockedChromaDBToolLoader.mockImplementation(() => mockToolLoader);
 
     // Create engine instance
     engine = new ConversationalEngine('gpt-4');
