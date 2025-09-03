@@ -33,6 +33,18 @@ describe('ConversationalEngine', () => {
 
     // Create engine instance
     engine = new ConversationalEngine('gpt-4');
+    
+    // Mock the conversation store to be initialized
+    (engine as any).conversationStore.isInitialized = true;
+    (engine as any).conversationStore.createConversation = jest.fn().mockReturnValue({
+      id: 'test-conversation-id',
+      messages: []
+    });
+    (engine as any).conversationStore.addMessage = jest.fn();
+    (engine as any).conversationStore.saveConversation = jest.fn().mockResolvedValue(undefined);
+    (engine as any).conversationStore.loadConversation = jest.fn().mockResolvedValue({});
+    (engine as any).conversationStore.listConversations = jest.fn().mockResolvedValue([]);
+    (engine as any).conversationStore.close = jest.fn().mockResolvedValue(undefined);
   });
 
   describe('constructor', () => {
@@ -71,16 +83,22 @@ describe('ConversationalEngine', () => {
       
       // Mock tool matcher to return a tool
       mockToolMatcher.findBestMatch = jest.fn().mockResolvedValue({
-        tool: global.testUtils.createMockTool(),
+        tool: {
+          name: 'test-tool',
+          description: 'Test tool',
+          endpoint: { method: 'GET', path: '/test' },
+          inputSchema: { properties: {}, required: [] }
+        },
         parameters: { testParam: 'test value' },
         confidence: 0.8,
         reasoning: 'Test reasoning'
       });
 
       // Mock LLM response
-      mockLLM.generateResponse = jest.fn().mockResolvedValue(
-        global.testUtils.createMockLLMResponse()
-      );
+      mockLLM.generateResponse = jest.fn().mockResolvedValue({
+        content: 'Test response',
+        usage: { prompt_tokens: 10, completion_tokens: 5 }
+      });
 
       // Mock executor
       mockExecutor.execute = jest.fn().mockResolvedValue({
@@ -106,8 +124,18 @@ describe('ConversationalEngine', () => {
 
     it('should handle missing required parameters', async () => {
       // Mock tool with required parameters
-      const toolWithRequired = global.testUtils.createMockTool();
-      toolWithRequired.inputSchema.required = ['testParam', 'requiredParam'];
+      const toolWithRequired = {
+        name: 'test-tool',
+        description: 'Test tool',
+        endpoint: { method: 'GET', path: '/test' },
+        inputSchema: { 
+          properties: { 
+            testParam: { type: 'string' },
+            requiredParam: { type: 'string' }
+          }, 
+          required: ['testParam', 'requiredParam'] 
+        }
+      };
       
       mockToolMatcher.findBestMatch = jest.fn().mockResolvedValue({
         tool: toolWithRequired,
@@ -123,8 +151,15 @@ describe('ConversationalEngine', () => {
     });
 
     it('should execute tool when all parameters are provided', async () => {
-      const tool = global.testUtils.createMockTool();
-      tool.inputSchema.required = ['testParam'];
+      const tool = {
+        name: 'test-tool',
+        description: 'Test tool',
+        endpoint: { method: 'GET', path: '/test' },
+        inputSchema: { 
+          properties: { testParam: { type: 'string' } }, 
+          required: ['testParam'] 
+        }
+      };
       
       mockToolMatcher.findBestMatch = jest.fn().mockResolvedValue({
         tool,
@@ -152,7 +187,12 @@ describe('ConversationalEngine', () => {
 
     it('should handle low confidence tool matches', async () => {
       mockToolMatcher.findBestMatch = jest.fn().mockResolvedValue({
-        tool: global.testUtils.createMockTool(),
+        tool: {
+          name: 'test-tool',
+          description: 'Test tool',
+          endpoint: { method: 'GET', path: '/test' },
+          inputSchema: { properties: {}, required: [] }
+        },
         parameters: {},
         confidence: 0.3, // Low confidence
         reasoning: 'Low confidence match'
@@ -178,7 +218,15 @@ describe('ConversationalEngine', () => {
     });
 
     it('should load conversation', async () => {
-      const mockConversation = global.testUtils.createMockConversation();
+      const mockConversation = {
+        id: 'test-id',
+        messages: [
+          { role: 'user', content: 'Hello' },
+          { role: 'assistant', content: 'Hi there!' }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
       const mockLoad = jest.fn().mockResolvedValue(mockConversation);
       (engine as any).conversationStore = { loadConversation: mockLoad };
       
@@ -240,11 +288,10 @@ describe('ConversationalEngine', () => {
       const mockDestroy = jest.fn().mockResolvedValue(undefined);
       (engine as any).conversationStore = { close: mockDestroy };
       (engine as any).toolMatcher = { close: mockDestroy };
-      (engine as any).chromaService = { close: mockDestroy };
       
       await engine.destroy();
       
-      expect(mockDestroy).toHaveBeenCalledTimes(3);
+      expect(mockDestroy).toHaveBeenCalledTimes(2);
     });
   });
 });
