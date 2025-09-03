@@ -37,7 +37,23 @@ describe('ConversationalEngine', () => {
     // Mock initialization
     mockChromaService.initialize = jest.fn().mockResolvedValue(undefined);
     mockToolMatcher.initialize = jest.fn().mockResolvedValue(undefined);
-    mockToolLoader.loadTools = jest.fn().mockResolvedValue([]);
+    
+    // Mock tools for testing
+    const mockTools = [
+      {
+        name: 'test-tool',
+        description: 'Test tool for unit testing',
+        endpoint: { method: 'GET', path: '/test' },
+        inputSchema: { 
+          properties: { 
+            testParam: { type: 'string', description: 'Test parameter' },
+            requiredParam: { type: 'string', description: 'Required parameter' }
+          }, 
+          required: ['testParam'] 
+        }
+      }
+    ];
+    mockToolLoader.loadTools = jest.fn().mockResolvedValue(mockTools);
     
     // Mock the ChromaDBToolLoader constructor
     MockedChromaDBToolLoader.mockImplementation(() => mockToolLoader);
@@ -47,10 +63,11 @@ describe('ConversationalEngine', () => {
     
     // Mock the conversation store to be initialized
     (engine as any).conversationStore.isInitialized = true;
-    (engine as any).conversationStore.createConversation = jest.fn().mockReturnValue({
-      id: 'test-conversation-id',
+    let conversationCounter = 0;
+    (engine as any).conversationStore.createConversation = jest.fn().mockImplementation(() => ({
+      id: `test-conversation-id-${++conversationCounter}`,
       messages: []
-    });
+    }));
     (engine as any).conversationStore.addMessage = jest.fn();
     (engine as any).conversationStore.saveConversation = jest.fn().mockResolvedValue(undefined);
     (engine as any).conversationStore.loadConversation = jest.fn().mockResolvedValue({});
