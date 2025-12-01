@@ -21,9 +21,45 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
+
+// CORS configuration for both local development and Docker
+const corsOrigins = [
+  'http://localhost:3000',  // Local development
+  'http://frontend:3000',   // Docker frontend container
+  'http://localhost:3001',  // Direct backend access
+  'http://backend:3001'     // Docker backend container
+];
+
+// Add environment-specific origins
+if (process.env.FRONTEND_URL) {
+  corsOrigins.push(process.env.FRONTEND_URL);
+}
+if (process.env.CORS_ORIGIN) {
+  corsOrigins.push(process.env.CORS_ORIGIN);
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // In development, be more permissive
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`⚠️  CORS: Allowing origin in development: ${origin}`);
+      return callback(null, true);
+    }
+    
+    console.log(`❌ CORS: Blocked origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
@@ -71,12 +107,12 @@ app.get('/', (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Endpoint not found',
-    path: req.originalUrl
-  });
-});
+// app.use('*', (req, res) => {
+//   res.status(404).json({
+//     error: 'Endpoint not found',
+//     path: req.originalUrl
+//   });
+// });
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
