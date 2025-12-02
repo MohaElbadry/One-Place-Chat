@@ -1,6 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Search } from "lucide-react";
 
 interface Tool {
   id: string;
@@ -21,34 +26,35 @@ interface ToolsPanelProps {
 }
 
 export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
 
   const getMethodColor = (method: string) => {
     switch (method.toUpperCase()) {
-      case 'GET':
-        return 'bg-green-100 text-green-800';
-      case 'POST':
-        return 'bg-blue-100 text-blue-800';
-      case 'PUT':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'DELETE':
-        return 'bg-red-100 text-red-800';
+      case "GET":
+        return "bg-green-100 text-green-800";
+      case "POST":
+        return "bg-blue-100 text-blue-800";
+      case "PUT":
+        return "bg-yellow-100 text-yellow-800";
+      case "DELETE":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const filteredTools = tools.filter(tool => {
-    const matchesSearch = tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         tool.path.toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredTools = tools.filter((tool) => {
+    const matchesSearch =
+      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tool.path.toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesSearch;
   });
 
   const toggleToolExpansion = (toolId: string) => {
-    setExpandedTools(prev => {
+    setExpandedTools((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(toolId)) {
         newSet.delete(toolId);
@@ -69,30 +75,32 @@ export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
     }
 
     const isExpanded = expandedTools.has(toolId);
-    
+
     if (isExpanded) {
       return { description, isTruncated: false };
     }
 
-    const truncatedDescription = description.substring(0, 150) + '...';
+    const truncatedDescription = description.substring(0, 150) + "...";
     return { description: truncatedDescription, isTruncated: true };
   };
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-80 bg-card border-l border-border flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Available Tools</h2>
-        
+      <div className="flex-shrink-0 p-4 border-b border-border">
+        <h2 className="text-lg font-semibold text-foreground mb-4">
+          Available Tools
+        </h2>
+
         {/* Search */}
         <div className="relative mb-4">
-          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400">🔍</span>
-          <input
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             type="text"
             placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-900"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-card text-foreground"
           />
         </div>
       </div>
@@ -100,81 +108,110 @@ export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
       {/* Tools List */}
       <div className="flex-1 overflow-y-auto">
         {filteredTools.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            <span className="w-8 h-8 mx-auto mb-2 text-gray-300">🔧</span>
+          <div className="p-4 text-center text-muted-foreground">
+            <span className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50">
+              🔧
+            </span>
             <p className="text-sm">No tools found</p>
-            <p className="text-xs text-gray-400">Try adjusting your search</p>
+            <p className="text-xs text-muted-foreground/70">
+              Try adjusting your search
+            </p>
           </div>
         ) : (
           <div className="p-2">
             {filteredTools.map((tool) => {
-              const { description: displayDescription, isTruncated } = truncateDescription(tool.description, tool.id);
-              
+              const { description: displayDescription, isTruncated } =
+                truncateDescription(tool.description, tool.id);
+
               return (
-                <div
+                <Card
                   key={tool.id}
                   onClick={() => onToolClick?.(tool)}
-                  className="p-3 rounded-lg border border-gray-200 mb-2 hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="mb-2 hover:bg-accent/50 transition-colors cursor-pointer border-border"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate break-words">
-                        {tool.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1 break-words">
-                        {displayDescription}
-                      </p>
-                      
-                      {/* See more/less button for long descriptions */}
-                      {isLongDescription(tool.description) && (
-                        <button
-                          onClick={() => toggleToolExpansion(tool.id)}
-                          className="mt-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                        >
-                          {expandedTools.has(tool.id) ? 'See less' : 'See more'}
-                        </button>
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base text-foreground truncate break-words">
+                          {tool.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed break-words">
+                          {displayDescription}
+                        </p>
+
+                        {/* See more/less button for long descriptions */}
+                        {isLongDescription(tool.description) && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleToolExpansion(tool.id);
+                            }}
+                            className="mt-1 h-auto p-0 text-xs font-medium text-primary hover:text-primary/80"
+                          >
+                            {expandedTools.has(tool.id)
+                              ? "See less"
+                              : "See more"}
+                          </Button>
+                        )}
+                      </div>
+                      <Badge
+                        className={`ml-2 flex-shrink-0 ${getMethodColor(
+                          tool.method
+                        )}`}
+                      >
+                        {tool.method}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 text-xs text-muted-foreground break-all flex flex-col gap-1">
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/70">
+                          Path:
+                        </span>
+                        <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono text-foreground">
+                          {tool.path}
+                        </code>
+                      </div>
+                      {/* Show path parameters if they exist */}
+                      {tool.path.match(/\{([^}]+)\}/g) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {tool.path
+                            .match(/\{([^}]+)\}/g)
+                            ?.map((param: string, index: number) => (
+                              <Badge
+                                key={index}
+                                variant="outline"
+                                className="px-1.5 py-0.5 bg-red-100 text-red-700 border-red-200 text-xs font-medium"
+                              >
+                                {param.replace(/[{}]/g, "")}
+                              </Badge>
+                            ))}
+                        </div>
                       )}
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(tool.method)} flex-shrink-0 ml-2`}>
-                      {tool.method}
-                    </span>
-                  </div>
-                  
-                  <div className="text-xs text-gray-500 break-all">
-                    <span className="font-mono">{tool.path}</span>
-                    {/* Show path parameters if they exist */}
-                    {tool.path.match(/\{([^}]+)\}/g) && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {tool.path.match(/\{([^}]+)\}/g)?.map((param: string, index: number) => (
-                          <span
+
+                    {tool.tags && tool.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {tool.tags.slice(0, 3).map((tag, index) => (
+                          <Badge
                             key={index}
-                            className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium"
+                            variant="secondary"
+                            className="text-xs break-words"
                           >
-                            {param.replace(/[{}]/g, '')}
-                          </span>
+                            {tag}
+                          </Badge>
                         ))}
+                        {tool.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{tool.tags.length - 3}
+                          </Badge>
+                        )}
                       </div>
                     )}
-                  </div>
-                  
-                  {tool.tags && tool.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {tool.tags.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs break-words"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {tool.tags.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                          +{tool.tags.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>

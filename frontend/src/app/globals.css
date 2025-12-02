@@ -1,282 +1,90 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-dark-900 text-white;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  /* Enhanced typography */
-  .font-inter {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  .font-poppins {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  .font-display {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 700;
-  }
-  
-  .font-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 400;
-  }
-  
-  .font-code {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
-  }
+:root {
+  --radius: 0.625rem;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 0 0% 12%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 12%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 12%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 0 0% 64%;
+  --chart-1: 20 80% 55%;
+  --chart-2: 180 40% 50%;
+  --chart-3: 210 30% 40%;
+  --chart-4: 45 80% 60%;
+  --chart-5: 35 80% 55%;
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-primary: 0 0% 12%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 96%;
+  --sidebar-accent-foreground: 0 0% 12%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-ring: 0 0% 64%;
+
+  /* Custom colors for the app */
+  --success: 142 76% 36%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 9%;
+  --info: 199 89% 48%;
+  --info-foreground: 0 0% 100%;
 }
 
-@layer components {
-  .gradient-border {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2px;
-    border-radius: 12px;
-  }
-  
-  .gradient-border-content {
-    background: #1a1a1a;
-    border-radius: 10px;
-  }
-  
-  .chat-scroll::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  .chat-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .chat-scroll::-webkit-scrollbar-thumb {
-    background: #3a3a3a;
-    border-radius: 2px;
-  }
-  
-  .chat-scroll::-webkit-scrollbar-thumb:hover {
-    background: #4a4a4a;
-  }
+.dark {
+  --background: 0 0% 9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 90%;
+  --primary-foreground: 0 0% 12%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 20%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 0 0% 45%;
+  --chart-1: 250 80% 60%;
+  --chart-2: 160 60% 55%;
+  --chart-3: 35 80% 55%;
+  --chart-4: 280 70% 60%;
+  --chart-5: 10 80% 55%;
+  --sidebar: 0 0% 12%;
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 250 80% 60%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 15%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 0 0% 20%;
+  --sidebar-ring: 0 0% 35%;
 
-  /* Custom scrollbar for tools and conversations */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
-    border-radius: 3px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a;
-  }
-
-  /* Hide scrollbars but keep functionality */
-  .hide-scrollbar {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-  }
-
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
-
-  /* Markdown styling overrides */
-  .prose {
-    @apply text-inherit;
-  }
-  
-  .prose p {
-    @apply text-inherit mb-2 last:mb-0;
-  }
-  
-  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-    @apply text-inherit font-semibold;
-  }
-  
-  .prose ul, .prose ol {
-    @apply text-inherit;
-  }
-  
-  .prose li {
-    @apply text-inherit;
-  }
-  
-  .prose blockquote {
-    @apply text-inherit border-l-4 border-gray-300 pl-4 my-3 italic;
-  }
-  
-  .prose code {
-    @apply text-inherit bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono;
-  }
-  
-  .prose pre {
-    @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto max-w-full;
-    white-space: pre-wrap;
-    word-break: break-all;
-    overflow-wrap: break-word;
-  }
-  
-  .prose strong {
-    @apply text-inherit font-semibold;
-  }
-  
-  .prose em {
-    @apply text-inherit italic;
-  }
-  
-  /* Enhanced chat styling */
-  .chat-message {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  .chat-input {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 500;
-  }
-  
-  /* Enhanced color palette */
-  .bg-primary {
-    background-color: #4F8EF7;
-  }
-  
-  .bg-secondary {
-    background-color: #F59E0B;
-  }
-  
-  .bg-success {
-    background-color: #10B981;
-  }
-  
-  .bg-accent {
-    background-color: #8B5CF6;
-  }
-  
-  .bg-warm-gray {
-    background-color: #FAFAFA;
-  }
-  
-  .text-primary {
-    color: #4F8EF7;
-  }
-  
-  .text-secondary {
-    color: #F59E0B;
-  }
-  
-  .text-success {
-    color: #10B981;
-  }
-  
-  .text-accent {
-    color: #8B5CF6;
-  }
-  
-  /* Smooth transitions */
-  .transition-smooth {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  /* Enhanced shadows */
-  .shadow-soft {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-  
-  .shadow-medium {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.12);
-  }
-  
-  /* HTTP method colors */
-  .http-get {
-    background-color: #10B981;
-    color: white;
-  }
-  
-  .http-post {
-    background-color: #4F8EF7;
-    color: white;
-  }
-  
-  .http-put {
-    background-color: #F59E0B;
-    color: white;
-  }
-  
-  .http-delete {
-    background-color: #EF4444;
-    color: white;
-  }
-  
-  .http-patch {
-    background-color: #8B5CF6;
-    color: white;
-  }
-
-  /* Chat message animations */
-  .message-enter {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  
-  .message-enter-active {
-    opacity: 1;
-    transform: translateY(0);
-    transition: opacity 200ms, transform 200ms;
-  }
-  
-  .message-exit {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  
-  .message-exit-active {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 200ms, transform 200ms;
-  }
-
-  /* Auto-resize textarea */
-  .auto-resize-textarea {
-    resize: none;
-    overflow: hidden;
-    min-height: 44px;
-    max-height: 128px;
-  }
-
-  /* Textarea placeholder styling */
-  textarea::placeholder {
-    color: #6b7280;
-    opacity: 1;
-  }
-
-  /* Code block styling improvements */
-  .prose pre code {
-    @apply bg-transparent text-inherit p-0;
-    white-space: pre-wrap !important;
-    word-break: break-all !important;
-    overflow-wrap: break-word !important;
-  }
-
-  /* Syntax highlighter improvements */
-  .prose div[class*="language-"] {
-    @apply max-w-full;
-    overflow-x: auto !important;
-  }
-
-  .prose div[class*="language-"] pre {
-    @apply m-0;
-    white-space: pre-wrap !important;
-    word-break: break-all !important;
-    overflow-wrap: break-word !important;
-  }
+  /* Custom colors for the app */
+  --success: 142 76% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 55%;
+  --warning-foreground: 0 0% 9%;
+  --info: 199 89% 55%;
+  --info-foreground: 0 0% 100%;
 }
