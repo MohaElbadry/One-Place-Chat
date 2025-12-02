@@ -50,6 +50,64 @@ export default function Sidebar({
     onConversationDelete(conversationId);
   };
 
+  // Clean markdown: remove ** and render as bold, preserve code blocks
+  const cleanMarkdown = (text: string): string => {
+    if (!text) return text;
+    
+    // Truncate if too long for sidebar
+    const maxLength = 100;
+    let processed = text;
+    
+    // Preserve code blocks first (temporarily replace with placeholder)
+    const codeBlocks: string[] = [];
+    processed = processed.replace(/```[\s\S]*?```/g, (match) => {
+      codeBlocks.push(match);
+      return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    });
+    
+    // Preserve inline code
+    const inlineCode: string[] = [];
+    processed = processed.replace(/`([^`]+)`/g, (match, content) => {
+      inlineCode.push(content);
+      return `__INLINE_CODE_${inlineCode.length - 1}__`;
+    });
+    
+    // Remove ** markers and render as bold (convert **text** to <strong>text</strong>)
+    processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    processed = processed.replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+    
+    // Remove other markdown syntax but keep content
+    processed = processed.replace(/__(.*?)__/g, '$1');
+    processed = processed.replace(/_(.*?)_/g, '$1');
+    processed = processed.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+    processed = processed.replace(/^#{1,6}\s+(.+)$/gm, '$1');
+    
+    // Restore code blocks (keep as-is, they'll be rendered as code)
+    codeBlocks.forEach((code, index) => {
+      // Escape HTML in code blocks
+      const escapedCode = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      processed = processed.replace(`__CODE_BLOCK_${index}__`, `<code class="bg-muted px-1 rounded text-xs font-mono">${escapedCode}</code>`);
+    });
+    
+    // Restore inline code
+    inlineCode.forEach((code, index) => {
+      const escapedCode = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      processed = processed.replace(`__INLINE_CODE_${index}__`, `<code class="bg-muted/50 px-1 rounded text-xs font-mono">${escapedCode}</code>`);
+    });
+    
+    if (processed.length > maxLength) {
+      processed = processed.substring(0, maxLength) + "...";
+    }
+    
+    return processed;
+  };
+
   return (
     <div className="w-80 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Header */}
@@ -96,9 +154,12 @@ export default function Sidebar({
                     <h3 className="font-medium text-foreground truncate">
                       {conversation.title || "New Conversation"}
                     </h3>
-                    <p className="text-sm text-muted-foreground truncate mt-1">
-                      {conversation.lastMessage || "No messages yet"}
-                    </p>
+                    <p 
+                      className="text-sm text-muted-foreground truncate mt-1"
+                      dangerouslySetInnerHTML={{ 
+                        __html: cleanMarkdown(conversation.lastMessage) || "No messages yet" 
+                      }}
+                    />
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                       <span>{conversation.messageCount} messages</span>
                       <span>•</span>

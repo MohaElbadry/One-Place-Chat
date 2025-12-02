@@ -388,29 +388,41 @@ export default function ChatArea({
     () => ({
       code({ node, inline, className, children, ...props }: any) {
         const match = /language-(\w+)/.exec(className || "");
-        return !inline && match ? (
-          <SyntaxHighlighter
-            style={oneDark}
-            language={match[1]}
-            PreTag="div"
-            className="rounded-lg text-sm !overflow-x-auto !max-w-full font-code"
-            wrapLines={true}
-            wrapLongLines={true}
-            customStyle={{
-              maxWidth: "100%",
-              overflowX: "auto",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-              fontFamily:
-                "JetBrains Mono, Fira Code, Monaco, Consolas, monospace",
-            }}
-            {...props}
-          >
-            {String(children).replace(/\n$/, "")}
-          </SyntaxHighlighter>
-        ) : (
+        const language = match ? match[1] : null;
+        
+        // Handle code blocks (not inline)
+        if (!inline) {
+          return (
+            <div className="my-4 rounded-lg overflow-hidden">
+              <SyntaxHighlighter
+                style={oneDark}
+                language={language || "text"}
+                PreTag="div"
+                className="rounded-lg text-sm !overflow-x-auto !max-w-full font-code"
+                wrapLines={true}
+                wrapLongLines={true}
+                customStyle={{
+                  maxWidth: "100%",
+                  overflowX: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontFamily:
+                    "JetBrains Mono, Fira Code, Monaco, Consolas, monospace",
+                  margin: 0,
+                  padding: "1rem",
+                }}
+                {...props}
+              >
+                {String(children).replace(/\n$/, "")}
+              </SyntaxHighlighter>
+            </div>
+          );
+        }
+        
+        // Handle inline code
+        return (
           <code
-            className="bg-muted text-destructive px-1 py-0.5 rounded text-sm font-mono break-all"
+            className="bg-muted text-primary px-1.5 py-0.5 rounded text-sm font-mono break-words"
             {...props}
           >
             {children}
@@ -454,11 +466,19 @@ export default function ChatArea({
           {children}
         </blockquote>
       ),
-      pre: ({ children }: any) => (
-        <pre className="bg-foreground text-background p-4 rounded-lg overflow-x-auto max-w-full whitespace-pre-wrap break-all text-sm mb-3">
-          {children}
-        </pre>
-      ),
+      pre: ({ children }: any) => {
+        // Extract code from pre tag (ReactMarkdown wraps code in pre)
+        const codeElement = (children as any)?.props?.children;
+        if (codeElement) {
+          // Let the code component handle it
+          return <>{children}</>;
+        }
+        return (
+          <pre className="bg-muted border border-border p-4 rounded-lg overflow-x-auto max-w-full whitespace-pre-wrap break-words text-sm mb-3 font-mono">
+            {children}
+          </pre>
+        );
+      },
       strong: ({ children }: any) => (
         <strong className="font-semibold text-foreground break-words">
           {children}
@@ -521,17 +541,11 @@ export default function ChatArea({
                   isUser ? "text-foreground" : "text-foreground"
                 } break-words overflow-hidden`}
               >
-                {isAssistant ? (
-                  <div className="prose prose-sm max-w-none overflow-hidden">
-                    <ReactMarkdown components={markdownComponents}>
-                      {fullContent}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <div className="whitespace-pre-wrap break-words overflow-hidden">
+                <div className="prose prose-sm max-w-none overflow-hidden">
+                  <ReactMarkdown components={markdownComponents}>
                     {fullContent}
-                  </div>
-                )}
+                  </ReactMarkdown>
+                </div>
               </div>
 
               {/* See more/less button for long messages */}

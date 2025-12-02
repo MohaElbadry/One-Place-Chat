@@ -188,7 +188,7 @@ export default function ChatInterface() {
 
             <DialogFooter className="w-full gap-2 sm:gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => {
                   setShowDeleteConfirm(false);
                   setConversationToDelete(null);
