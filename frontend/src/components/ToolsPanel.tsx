@@ -32,15 +32,17 @@ export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
   const getMethodColor = (method: string) => {
     switch (method.toUpperCase()) {
       case "GET":
-        return "bg-green-100 text-green-800";
+        return "bg-green-500/20 text-green-400 border border-green-500/30";
       case "POST":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
       case "PUT":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
       case "DELETE":
-        return "bg-red-100 text-red-800";
+        return "bg-red-500/20 text-red-400 border border-red-500/30";
+      case "PATCH":
+        return "bg-purple-500/20 text-purple-400 border border-purple-500/30";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground border border-border";
     }
   };
 
@@ -100,7 +102,7 @@ export default function ToolsPanel({ tools, onToolClick }: ToolsPanelProps) {
             placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-card text-foreground"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-muted text-foreground"
           />
         </div>
       </div>

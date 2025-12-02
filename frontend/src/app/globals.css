@@ -4,7 +4,7 @@
 
 :root {
   --radius: 0.75rem;
-  
+
   /* Modern Light Theme - Professional Blue/Teal Palette */
   --background: 0 0% 100%;
   --foreground: 222 47% 11%;
@@ -12,39 +12,39 @@
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  
+
   /* Primary - Vibrant Indigo/Blue */
   --primary: 221 83% 53%;
   --primary-foreground: 0 0% 100%;
-  
+
   /* Secondary - Teal/Green */
   --secondary: 173 80% 40%;
   --secondary-foreground: 0 0% 100%;
-  
+
   /* Muted - Cool Gray */
   --muted: 220 14% 96%;
   --muted-foreground: 220 9% 46%;
-  
+
   /* Accent - Cyan/Teal */
   --accent: 199 89% 48%;
   --accent-foreground: 0 0% 100%;
-  
+
   /* Destructive - Modern Red */
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  
+
   /* Borders and Inputs */
   --border: 220 13% 91%;
   --input: 220 13% 91%;
   --ring: 221 83% 53%;
-  
+
   /* Chart Colors - Vibrant Palette */
   --chart-1: 221 83% 53%;
   --chart-2: 173 80% 40%;
   --chart-3: 199 89% 48%;
   --chart-4: 142 76% 36%;
   --chart-5: 38 92% 50%;
-  
+
   /* Sidebar - Subtle Background */
   --sidebar: 220 14% 98%;
   --sidebar-foreground: 222 47% 11%;
@@ -65,61 +65,143 @@
 }
 
 .dark {
-  /* Modern Dark Theme - Deep Blue/Teal Palette */
-  --background: 222 47% 11%;
-  --foreground: 213 31% 91%;
-  --card: 222 47% 11%;
-  --card-foreground: 213 31% 91%;
-  --popover: 222 47% 11%;
-  --popover-foreground: 213 31% 91%;
-  
-  /* Primary - Bright Indigo/Blue */
-  --primary: 217 91% 60%;
-  --primary-foreground: 222 47% 11%;
-  
-  /* Secondary - Bright Teal/Green */
-  --secondary: 173 80% 45%;
+  /* Modern Dark Theme - Warmer Slate/Blue Palette */
+  --background: 215 28% 17%;
+  --foreground: 213 27% 92%;
+  --card: 215 28% 20%;
+  --card-foreground: 213 27% 92%;
+  --popover: 215 28% 19%;
+  --popover-foreground: 213 27% 92%;
+
+  /* Primary - Electric Bright Blue */
+  --primary: 217 91% 65%;
+  --primary-foreground: 215 28% 12%;
+
+  /* Secondary - Vibrant Emerald/Teal */
+  --secondary: 168 76% 50%;
   --secondary-foreground: 0 0% 100%;
-  
-  /* Muted - Dark Gray with Blue Tint */
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  
-  /* Accent - Bright Cyan */
-  --accent: 199 89% 48%;
+
+  /* Muted - Warmer Dark Gray */
+  --muted: 215 25% 25%;
+  --muted-foreground: 213 20% 70%;
+
+  /* Accent - Bright Electric Cyan */
+  --accent: 191 91% 55%;
   --accent-foreground: 0 0% 100%;
-  
-  /* Destructive - Softer Red for Dark */
-  --destructive: 0 72% 51%;
+
+  /* Destructive - Vibrant Red */
+  --destructive: 0 84% 65%;
   --destructive-foreground: 0 0% 100%;
-  
+
   /* Borders and Inputs */
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 217 91% 60%;
-  
-  /* Chart Colors - Bright for Dark Mode */
-  --chart-1: 217 91% 60%;
-  --chart-2: 173 80% 45%;
-  --chart-3: 199 89% 48%;
-  --chart-4: 142 76% 42%;
-  --chart-5: 38 92% 55%;
-  
-  /* Sidebar - Darker Background */
-  --sidebar: 222 47% 11%;
-  --sidebar-foreground: 213 31% 91%;
-  --sidebar-primary: 217 91% 60%;
-  --sidebar-primary-foreground: 222 47% 11%;
-  --sidebar-accent: 217 33% 17%;
-  --sidebar-accent-foreground: 213 31% 91%;
-  --sidebar-border: 217 33% 17%;
-  --sidebar-ring: 217 91% 60%;
+  --border: 215 25% 30%;
+  --input: 215 25% 25%;
+  --ring: 217 91% 65%;
+
+  /* Chart Colors - Vibrant for Dark Mode */
+  --chart-1: 217 91% 65%;
+  --chart-2: 168 76% 50%;
+  --chart-3: 191 91% 55%;
+  --chart-4: 142 71% 45%;
+  --chart-5: 32 95% 60%;
+
+  /* Sidebar - Rich Dark Background */
+  --sidebar: 215 28% 15%;
+  --sidebar-foreground: 213 27% 92%;
+  --sidebar-primary: 217 91% 65%;
+  --sidebar-primary-foreground: 215 28% 12%;
+  --sidebar-accent: 215 25% 22%;
+  --sidebar-accent-foreground: 213 27% 92%;
+  --sidebar-border: 215 25% 28%;
+  --sidebar-ring: 217 91% 65%;
 
   /* Custom colors for the app */
-  --success: 142 76% 42%;
+  --success: 142 71% 45%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 55%;
+  --warning: 32 95% 60%;
   --warning-foreground: 0 0% 100%;
-  --info: 199 89% 48%;
+  --info: 191 91% 55%;
   --info-foreground: 0 0% 100%;
+}
+
+/* Custom scrollbar for code blocks */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Ensure code blocks don't break layout */
+pre,
+code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Force code block containers to respect parent width */
+pre[class*="language-"],
+div[class*="SyntaxHighlighter"],
+pre[class*="SyntaxHighlighter"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Fix SyntaxHighlighter table structure */
+pre[class*="SyntaxHighlighter"] table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: auto !important;
+}
+
+pre[class*="SyntaxHighlighter"] code {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+}
+
+/* Ensure message containers don't expand */
+.prose pre,
+.prose code {
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+/* Force horizontal scroll for long lines */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Custom scrollbar for chat areas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
 }
