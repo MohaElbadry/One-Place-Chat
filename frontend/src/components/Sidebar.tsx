@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Trash2, MessageSquare, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/lib/theme-provider";
 
 interface Conversation {
   id: string;
@@ -27,6 +28,7 @@ export default function Sidebar({
   onNewConversation,
   onConversationDelete,
 }: SidebarProps) {
+  const { theme, toggleTheme } = useTheme();
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -116,6 +118,19 @@ export default function Sidebar({
           <h1 className="text-xl font-bold text-sidebar-foreground">
             One-Place-Chat
           </h1>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleTheme}
+            className="h-8 w-8 hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-foreground"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
         </div>
 
         {/* New Conversation Button */}

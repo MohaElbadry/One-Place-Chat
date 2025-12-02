@@ -392,8 +392,18 @@ export default function ChatArea({
         
         // Handle code blocks (not inline)
         if (!inline) {
+          const codeString = String(children).replace(/\n$/, "");
+          const lines = codeString.split('\n').length;
+          
           return (
-            <div className="my-4 rounded-lg overflow-hidden">
+            <div className="my-4 rounded-lg overflow-hidden relative">
+              {language && (
+                <div className="absolute top-2 right-2 z-10">
+                  <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded font-mono">
+                    {language}
+                  </span>
+                </div>
+              )}
               <SyntaxHighlighter
                 style={oneDark}
                 language={language || "text"}
@@ -401,6 +411,14 @@ export default function ChatArea({
                 className="rounded-lg text-sm !overflow-x-auto !max-w-full font-code"
                 wrapLines={true}
                 wrapLongLines={true}
+                showLineNumbers={lines > 1}
+                lineNumberStyle={{
+                  minWidth: "3em",
+                  paddingRight: "1em",
+                  textAlign: "right",
+                  userSelect: "none",
+                  opacity: 0.5,
+                }}
                 customStyle={{
                   maxWidth: "100%",
                   overflowX: "auto",
@@ -413,7 +431,7 @@ export default function ChatArea({
                 }}
                 {...props}
               >
-                {String(children).replace(/\n$/, "")}
+                {codeString}
               </SyntaxHighlighter>
             </div>
           );
@@ -517,7 +535,9 @@ export default function ChatArea({
               className={`rounded-2xl px-5 py-4 ${
                 isUser
                   ? "bg-info/20 text-foreground rounded-br-sm shadow-medium"
-                  : "bg-warm-gray border border-border/60 text-foreground rounded-bl-sm shadow-soft"
+                  : message.role === "system"
+                  ? "bg-muted border border-border text-muted-foreground rounded-bl-sm shadow-soft"
+                  : "bg-card border border-border text-foreground rounded-bl-sm shadow-soft"
               }`}
             >
               {/* Timestamp and role */}
@@ -590,12 +610,12 @@ export default function ChatArea({
   ]);
 
   return (
-    <div className="flex flex-col h-full bg-muted">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex-shrink-0 p-5 bg-warm-gray border-b border-border/60 shadow-soft">
+      <div className="flex-shrink-0 p-5 bg-card border-b border-border shadow-soft">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-display text-primary">
+            <h2 className="text-xl font-display text-foreground">
               {currentConversationId ? "Conversation" : "New Conversation"}
             </h2>
             {currentConversationId && (
@@ -673,7 +693,7 @@ export default function ChatArea({
         {isLoading && (
           <div className="flex justify-start mb-4">
             <div className="max-w-[80%]">
-              <div className="bg-warm-gray border border-border/60 rounded-2xl rounded-bl-sm px-5 py-4 shadow-soft">
+              <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-5 py-4 shadow-soft">
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <div className="flex space-x-1">
                     <div className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce"></div>
@@ -711,7 +731,7 @@ export default function ChatArea({
               }
             }}
             placeholder="Type your message here..."
-            className="flex-1 p-4 border border-border/60 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[48px] max-h-32 text-foreground overflow-y-auto font-medium text-base leading-relaxed bg-warm-gray"
+            className="flex-1 p-4 border border-border rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[48px] max-h-32 text-foreground overflow-y-auto font-medium text-base leading-relaxed bg-card"
             rows={1}
             disabled={isLoading}
             style={{
