@@ -3,88 +3,123 @@
 @tailwind utilities;
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
+  
+  /* Modern Light Theme - Professional Blue/Teal Palette */
   --background: 0 0% 100%;
-  --foreground: 0 0% 9%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 9%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  --primary: 0 0% 12%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 12%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 0 0% 96%;
-  --accent-foreground: 0 0% 12%;
+  --popover-foreground: 222 47% 11%;
+  
+  /* Primary - Vibrant Indigo/Blue */
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary - Teal/Green */
+  --secondary: 173 80% 40%;
+  --secondary-foreground: 0 0% 100%;
+  
+  /* Muted - Cool Gray */
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  
+  /* Accent - Cyan/Teal */
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+  
+  /* Destructive - Modern Red */
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 0 0% 64%;
-  --chart-1: 20 80% 55%;
-  --chart-2: 180 40% 50%;
-  --chart-3: 210 30% 40%;
-  --chart-4: 45 80% 60%;
-  --chart-5: 35 80% 55%;
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: 0 0% 9%;
-  --sidebar-primary: 0 0% 12%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 0 0% 96%;
-  --sidebar-accent-foreground: 0 0% 12%;
-  --sidebar-border: 0 0% 90%;
-  --sidebar-ring: 0 0% 64%;
+  --destructive-foreground: 0 0% 100%;
+  
+  /* Borders and Inputs */
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 221 83% 53%;
+  
+  /* Chart Colors - Vibrant Palette */
+  --chart-1: 221 83% 53%;
+  --chart-2: 173 80% 40%;
+  --chart-3: 199 89% 48%;
+  --chart-4: 142 76% 36%;
+  --chart-5: 38 92% 50%;
+  
+  /* Sidebar - Subtle Background */
+  --sidebar: 220 14% 98%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 14% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 221 83% 53%;
 
   /* Custom colors for the app */
   --success: 142 76% 36%;
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
-  --warning-foreground: 0 0% 9%;
+  --warning-foreground: 0 0% 100%;
   --info: 199 89% 48%;
   --info-foreground: 0 0% 100%;
 }
 
 .dark {
-  --background: 0 0% 9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 12%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 15%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 90%;
-  --primary-foreground: 0 0% 12%;
-  --secondary: 0 0% 15%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 15%;
-  --muted-foreground: 0 0% 64%;
-  --accent: 0 0% 20%;
-  --accent-foreground: 0 0% 98%;
+  /* Modern Dark Theme - Deep Blue/Teal Palette */
+  --background: 222 47% 11%;
+  --foreground: 213 31% 91%;
+  --card: 222 47% 11%;
+  --card-foreground: 213 31% 91%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 213 31% 91%;
+  
+  /* Primary - Bright Indigo/Blue */
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  
+  /* Secondary - Bright Teal/Green */
+  --secondary: 173 80% 45%;
+  --secondary-foreground: 0 0% 100%;
+  
+  /* Muted - Dark Gray with Blue Tint */
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  
+  /* Accent - Bright Cyan */
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+  
+  /* Destructive - Softer Red for Dark */
   --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 20%;
-  --input: 0 0% 20%;
-  --ring: 0 0% 45%;
-  --chart-1: 250 80% 60%;
-  --chart-2: 160 60% 55%;
-  --chart-3: 35 80% 55%;
-  --chart-4: 280 70% 60%;
-  --chart-5: 10 80% 55%;
-  --sidebar: 0 0% 12%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 250 80% 60%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 0 0% 15%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 0 0% 20%;
-  --sidebar-ring: 0 0% 35%;
+  --destructive-foreground: 0 0% 100%;
+  
+  /* Borders and Inputs */
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 217 91% 60%;
+  
+  /* Chart Colors - Bright for Dark Mode */
+  --chart-1: 217 91% 60%;
+  --chart-2: 173 80% 45%;
+  --chart-3: 199 89% 48%;
+  --chart-4: 142 76% 42%;
+  --chart-5: 38 92% 55%;
+  
+  /* Sidebar - Darker Background */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 213 31% 91%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 33% 17%;
+  --sidebar-accent-foreground: 213 31% 91%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 217 91% 60%;
 
   /* Custom colors for the app */
   --success: 142 76% 42%;
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 55%;
-  --warning-foreground: 0 0% 9%;
-  --info: 199 89% 55%;
+  --warning-foreground: 0 0% 100%;
+  --info: 199 89% 48%;
   --info-foreground: 0 0% 100%;
 }

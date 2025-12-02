@@ -81,8 +81,8 @@ const config: Config = {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
-        // Warm gray for backgrounds
-        "warm-gray": "#f9fafb",
+        // Warm gray for backgrounds - matches new theme
+        "warm-gray": "hsl(220 14% 98%)",
       },
       fontFamily: {
         display: ["Inter", "system-ui", "sans-serif"],
