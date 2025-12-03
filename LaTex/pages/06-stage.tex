@@ -1,0 +1,139 @@
+\renewcommand{\chaptername}{Chapitre}
+\chapter{ Présentation de JobAI}
+
+\markboth{Réalisation du projet}{Réalisation du projet}
+\label{part:Realisation-du-projet}
+
+JobAI se positionne comme une plateforme d'intelligence artificielle intégrée conçue pour révolutionner l'expérience de recherche d'emploi en automatisant intelligemment les tâches répétitives tout en personnalisant chaque candidature selon les exigences spécifiques des opportunités ciblées.\\
+
+Contrairement aux solutions partielles existantes qui se concentrent sur des aspects isolés du processus de candidature, JobAI adopte une approche holistique qui accompagne le candidat depuis la création de ses documents professionnels jusqu'à la postulation automatisée, en passant par l'analyse de compatibilité et le suivi centralisé des démarches.
+
+\section{Architecture et Innovation de JobAI}
+JobAI s'articule autour de sept modules interconnectés, formant une solution complète de gestion de carrière:
+
+\begin{itemize}
+    \item[$\bullet$] Module de génération intelligente de CV et lettres
+    \item[$\bullet$] Système d'optimisation et amélioration documentaire
+    \item[$\bullet$] Analyseur de compatibilité profil-offre
+    \item[$\bullet$] Gestionnaire centralisé de candidatures
+    \item[$\bullet$] Extension de capture automatique d'offres
+    \item[$\bullet$] Agent autonome de postulation
+\end{itemize}
+
+Cette architecture modulaire exploite les dernières avancées en intelligence artificielle (LLM, NLP) et en automatisation web pour transformer la recherche d'emploi en processus intelligent et autonome. L'innovation majeure réside dans l'intégration transparente de ces technologies, permettant une automatisation complète du cycle de candidature, de la découverte d'offres jusqu'à la soumission des dossiers.
+\section{Besoins Fonctionnels Détaillés}
+\subsection*{Module 1 : Génération Intelligente de CV}
+La plateforme permet à l'utilisateur de générer automatiquement un CV professionnel grâce à l'intelligence artificielle. Deux méthodes de saisie sont proposées pour répondre aux différents profils d'utilisateurs.
+La première méthode consiste à remplir un formulaire structuré dans l'application, contenant les informations personnelles, les expériences professionnelles, les formations, les compétences, les langues et autres éléments pertinents. Cette approche guidée garantit l'exhaustivité des informations collectées.
+La seconde méthode offre à l'utilisateur la possibilité de téléverser un fichier CV existant dans les formats PDF, Word ou texte brut. Ce fichier est ensuite analysé, structuré et enrichi par un modèle de langage avancé qui génère une version optimisée et bien formatée du CV.
+L'utilisateur peut visualiser le résultat, le modifier selon ses préférences ou demander des variantes adaptées à différents types de postes. L'objectif est de simplifier la création d'un CV attractif, conforme aux standards du marché et adapté au secteur d'activité recherché.
+\subsection*{Module 2 : Génération Personnalisée de Lettre de Motivation}
+Cette fonctionnalité utilise également une approche mixte pour s'adapter aux différentes situations de candidature. L'utilisateur peut soit saisir les éléments essentiels de sa candidature (nom du poste, entreprise, motivations personnelles, forces principales), soit fournir une description complète de l'offre d'emploi ainsi qu'un CV préalablement saisi ou importé.
+Le système combine intelligemment ces informations pour produire une lettre de motivation cohérente, personnalisée, professionnelle et structurée selon les meilleures pratiques. L'intelligence artificielle est spécialement entraînée pour adapter le ton de communication, mettre en valeur les compétences les plus pertinentes et respecter les normes formelles de rédaction comprenant l'accroche, le développement et la conclusion.
+L'utilisateur conserve la possibilité de réviser et personnaliser le contenu final avant téléchargement ou utilisation directe dans ses candidatures.
+
+\subsection*{Module 3 : Suggestions d'Amélioration des Documents}
+
+Une fois le CV ou la lettre de motivation générée ou importée, JobAI propose une fonctionnalité de relecture intelligente et d'optimisation documentaire. Le système analyse le contenu en profondeur pour détecter les incohérences, les faiblesses de formulation, les manques de clarté ou d'impact, et suggère des améliorations concrètes et actionnables.
+Ces suggestions peuvent concerner la structure générale du document, le style rédactionnel, le choix des termes techniques, la mise en valeur des compétences clés ou la pertinence du contenu par rapport au secteur d'activité ciblé. Cette fonctionnalité permet d'élever significativement la qualité du document, d'optimiser son efficacité auprès des recruteurs et de renforcer la confiance de l'utilisateur avant l'envoi de ses candidatures.
+
+\subsection*{Module 4 : Analyse de Similarité entre Profil et Offre d'Emploi}
+
+Grâce à des techniques avancées d'analyse sémantique incluant la vectorisation, les embeddings et le traitement du langage naturel, la plateforme est capable de comparer précisément le profil d'un utilisateur, extrait de son CV ou de ses données saisies, à une description d'offre d'emploi détaillée.
+Le système calcule un score de similarité exprimé sur une échelle de zéro à cent, accompagné d'une analyse qualitative approfondie. En plus du score quantitatif, le système fournit une explication textuelle détaillée mettant en évidence les correspondances identifiées (mots-clés sectoriels, compétences techniques, expériences pertinentes) et les écarts potentiels à combler.
+Cette fonctionnalité aide l'utilisateur à mieux comprendre sa compatibilité avec une offre spécifique et à ajuster stratégiquement son profil ou ses documents de candidature pour maximiser ses chances d'être retenu dans le processus de sélection.
+
+\subsection*{Module 5 : Suivi Centralisé des Candidatures}
+
+La plateforme intègre une interface complète de gestion des candidatures permettant à l'utilisateur de créer, consulter, modifier et supprimer manuellement ses postulations selon une approche de gestion de projet personnalisée.
+Pour chaque candidature, l'utilisateur peut enregistrer et gérer le titre de l'offre, l'entreprise concernée, la date de postulation, le lien vers l'offre originale, l'état d'avancement du processus (envoyée, en attente, entretien programmé, refusée), des notes personnelles détaillées et un système de rappels programmés avec date et objet spécifiques.
+La fonctionnalité de rappel automatique envoie des notifications par email via Gmail selon la planification définie par l'utilisateur. Ces notifications contiennent les détails complets de la candidature et des actions suggérées telles que la relance du recruteur ou la préparation d'entretien.
+L'objectif est de centraliser et organiser toutes les démarches de recherche d'emploi, d'éviter les doublons et les oublis, de fournir une vue claire et actualisée de la progression globale, et d'automatiser le suivi proactif des opportunités. Cette base de données personnelle est stockée de manière sécurisée via Firebase avec une synchronisation en temps réel sur tous les appareils de l'utilisateur.
+
+\subsection*{Module 6 : Extension Chrome pour Capture Automatique d'Offres}
+
+L'extension Chrome de JobAI permet aux utilisateurs de capturer et sauvegarder automatiquement des offres d'emploi tout en naviguant naturellement sur des sites spécialisés comme LinkedIn, Welcome to the Jungle ou Indeed, sans interrompre leur flux de navigation.
+Il suffit à l'utilisateur de sélectionner le texte d'une offre sur une page web pour qu'un widget contextuel apparaisse, lui permettant d'extraire et d'éditer les informations clés du poste directement dans l'interface intégrée.
+En un clic, l'offre est automatiquement analysée, structurée et enregistrée dans l'espace personnel de l'utilisateur sur la plateforme JobAI principale. L'objectif est de centraliser facilement les opportunités intéressantes sans nécessiter de copier-coller manuel ni de basculer entre différentes interfaces.
+Cette extension facilite une collecte rapide, propre et structurée des offres d'emploi repérées en ligne, optimisant ainsi le traitement ultérieur par les autres modules de la plateforme.
+
+\subsection*{Module 7 : Agent Intelligent Autonome de Postulation}
+
+Cette fonctionnalité représente l'innovation phare de JobAI. L'agent intelligent autonome permet à l'utilisateur de déléguer entièrement la tâche de postulation selon une approche d'automatisation complète du processus de candidature.
+Après avoir défini ses critères de recherche précis (type de poste, secteur d'activité, localisation géographique, type de contrat, niveau d'expérience requis), l'agent se connecte automatiquement aux plateformes supportées comme LinkedIn, recherche les offres correspondant aux critères établis, analyse leur contenu en profondeur, évalue la compatibilité avec le profil utilisateur, génère si nécessaire une lettre de motivation personnalisée, remplit automatiquement les formulaires de candidature, et soumet les candidatures au nom de l'utilisateur.
+Tous les résultats et actions effectuées sont enregistrés dans la base de données centralisée et accessibles via l'interface de suivi intégrée. L'utilisateur peut ainsi postuler à des dizaines d'offres par jour de manière totalement automatisée, sans aucune intervention humaine requise.
+L'agent est conçu pour respecter scrupuleusement les conditions d'utilisation des sites web ciblés et agir de façon fiable, discrète et conforme aux bonnes pratiques d'automatisation.
+
+\section{Besoins Non Fonctionnels}
+\begin{enumerate}
+    \item \textbf{Accessibilité} :
+    \begin{itemize}
+        \item[$\bullet$] Interface responsive multi-supports (ordinateurs, tablettes, smartphones)
+        \item[$\bullet$] Navigation fluide et intuitive
+        \item[$\bullet$] Utilisation sans compétences techniques particulières
+        \item[$\bullet$] Ergonomie optimisée pour tous les utilisateurs
+    \end{itemize}
+
+    \item \textbf{Performance} :
+    \begin{itemize}
+        \item[$\bullet$] Optimisation des appels à l'IA (génération CV, analyse sémantique)
+        \item[$\bullet$] Temps de réponse courts et prévisibles
+        \item[$\bullet$] Architecture légère et asynchrone
+        \item[$\bullet$] Stabilité sous charge intensive
+    \end{itemize}
+
+    \item \textbf{Sécurité des données} :
+    \begin{itemize}
+        \item[$\bullet$] Authentification via Firebase Auth
+        \item[$\bullet$] Stockage sécurisé des données sensibles
+        \item[$\bullet$] Protection des informations personnelles
+        \item[$\bullet$] Consentement explicite pour le partage de données
+    \end{itemize}
+
+    \item \textbf{Fiabilité} :
+    \begin{itemize}
+        \item[$\bullet$] Tests rigoureux du système
+        \item[$\bullet$] Mécanismes de gestion d'erreurs
+        \item[$\bullet$] Reprise automatique après incident
+        \item[$\bullet$] Gestion des coupures réseau
+    \end{itemize}
+
+    \item \textbf{Scalabilité} :
+    \begin{itemize}
+        \item[$\bullet$] Architecture cloud (Firebase, Firestore, Functions)
+        \item[$\bullet$] Capacité de montée en charge progressive
+        \item[$\bullet$] Adaptation automatique aux pics d'utilisation
+        \item[$\bullet$] Evolution sans modification structurelle majeure
+    \end{itemize}
+
+    \item \textbf{Maintenabilité} :
+    \begin{itemize}
+        \item[$\bullet$] Code modulaire et documenté
+        \item[$\bullet$] Composants React réutilisables
+        \item[$\bullet$] Bonnes pratiques de développement
+        \item[$\bullet$] Facilité d'ajout de nouvelles fonctionnalités
+    \end{itemize}
+
+    \item \textbf{Compatibilité} :
+    \begin{itemize}
+        \item[$\bullet$] Support des navigateurs modernes (Chrome, Edge)
+        \item[$\bullet$] Prise en charge multi-formats (PDF, DOCX, TXT)
+        \item[$\bullet$] Interopérabilité avec les outils existants
+        \item[$\bullet$] Extension navigateur compatible
+    \end{itemize}
+\end{enumerate}
+
+\section{Méthodologie de travail}
+
+\subsection*{Méthodologie adoptée}
+Le projet a été développé selon une approche \textbf{Agile}, plus précisément inspirée du cadre \textbf{Scrum}. Cette méthodologie, basée sur des cycles courts et itératifs appelés \textit{sprints}, était bien adaptée à la nature exploratoire du projet, qui combinait intelligence artificielle, automatisation, UI/UX et développement logiciel. Elle a permis une progression flexible et contrôlée, tout en maintenant une qualité constante.
+
+\subsection*{Application dans le contexte du projet}
+Le travail a été organisé en sprints hebdomadaires, avec des objectifs précis pour chaque semaine : par exemple, la mise en place du module de génération de CV, l’intégration de Firebase pour le suivi des candidatures, ou encore le développement de l’agent de postulation automatisé.
+
+Chaque début de sprint était marqué par une planification où les tâches étaient réparties selon les spécialités des membres de l’équipe (front-end, back-end, IA, automatisation). Ces tâches étaient suivies à l’aide d’un tableau de gestion collaboratif (Trello), afin de garantir la visibilité sur l’avancement global.
+
+Des réunions courtes et régulières ont permis d’échanger sur les obstacles rencontrés et de réajuster les priorités si nécessaire. En fin de sprint, une revue technique et fonctionnelle était effectuée pour valider les livrables et collecter les retours internes.
+
+Des phases de tests ont été intégrées dès les premières versions, avec des scénarios concrets (génération de CV à partir d’un upload, envoi automatique de candidatures via l’agent, fonctionnement de l’extension, etc.). Enfin, un effort particulier a été porté sur la documentation, la clarté du code et la maintenabilité de la solution.
+

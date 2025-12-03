@@ -1,0 +1,403 @@
+\chapter{Realisation}
+\section{Outils et technologies utilisés}
+
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/React-icon.svg.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{React.js} \\
+    Bibliothèque JavaScript développée par Meta pour construire des interfaces utilisateur dynamiques à base de composants. \\
+\end{minipage}
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Tailwind CSS.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Tailwind CSS} \\
+    Framework CSS utility-first qui permet de construire rapidement des designs personnalisés. \\
+   
+\end{minipage}
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Python.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Python} \\
+    Langage de programmation principal pour le backend. \\
+    \textit{Cas d'usage dans JobAI} : Développement du serveur Flask, traitement des données, intégration avec les APIs d'IA.
+\end{minipage}
+
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Flask.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Flask} \\
+    Framework web léger pour Python. Création des API REST, gestion des routes, intégration avec les services d'IA.
+\end{minipage}
+
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Firebase.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Firebase} \\
+     Nous avons utilisé Firebase pour stocker les utilisateurs, les documents générés, les candidatures et les préférences. Il gère aussi l’authentification sécurisée (login, signup) et héberge l’application web.
+\end{minipage}
+
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Chrome.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Extension Chrome (Manifest V3)} \\
+    Une extension Chrome est un petit programme qui s’intègre au navigateur et permet d’interagir avec les pages web visitées. Le format Manifest V3 est la dernière norme de sécurité pour les extensions.
+\end{minipage}
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/GitHub.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{GitHub} \\
+    Plateforme de gestion de code source basée sur Git. Hébergement du code source, collaboration d'équipe et gestion des versions.
+\end{minipage}
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=2.4em]{LOGOS/Trello.png} \\
+    \includegraphics[height=2.4em]{LOGOS/Notion.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Trello et Notion} \\
+     Nous avons utilisé Trello ou Notion pour organiser les sprints hebdomadaires, suivre les tâches, noter les idées de fonctionnalités, et documenter les décisions techniques prises en cours de développement.
+\end{minipage}
+
+
+\vspace{0.8em}
+\noindent
+\begin{minipage}{0.1\textwidth}
+    \includegraphics[height=3em]{LOGOS/Gemini.png}
+\end{minipage}%
+\begin{minipage}{0.9\textwidth}
+    \textbf{Gemini API} \\
+   Nous avons utilisé l’API pour générer automatiquement des CV et lettres de motivation à partir de données utilisateur ou de fichiers importés, mais aussi pour analyser les offres et calculer un score de similarité avec le profil.\\
+\end{minipage}
+
+\subsection{Sélection du Modèle de Langage : Gemini Flash 1.5}
+
+
+Le choix du modèle de langage constitue une décision stratégique cruciale pour JobAI, impactant directement la qualité des CV générés, l'expérience utilisateur et la viabilité économique du projet. Notre processus de sélection s'est appuyé sur une analyse comparative rigoureuse des principaux modèles disponibles sur le marché, en tenant compte de critères techniques, économiques et fonctionnels spécifiques à notre cas d'usage.
+
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=1\linewidth]{screens/Benchmark.png}}
+    \caption{Comparatif des performances des principaux modèles (Arena Elo Rankings)}
+    \label{fig:llm_benchmark}
+\end{figure}
+
+\subsubsection{Critères de Sélection}
+
+Notre évaluation s'est articulée autour de six critères fondamentaux :
+
+\begin{enumerate}
+    \item \textbf{Performance et Qualité} : Capacité à générer du contenu professionnel structuré et cohérent
+    \item \textbf{Coût d'Utilisation} : Viabilité économique pour une application destinée au grand public
+    \item \textbf{Vitesse de Traitement} : Latence acceptable pour une expérience utilisateur fluide
+    \item \textbf{Capacité de Contexte} : Aptitude à traiter des informations professionnelles complexes
+    \item \textbf{Accessibilité} : Disponibilité des API et facilité d'intégration
+    \item \textbf{Écosystème} : Compatibilité avec les outils et services existants
+\end{enumerate}
+
+\subsubsection{Analyse Comparative des Modèles}
+
+L'analyse du benchmark présenté en Figure \ref{fig:llm_benchmark} révèle plusieurs insights significatifs :
+
+\paragraph{Modèles Premium} Les modèles GPT-4o et Gemini 1.5 Pro occupent les premières positions avec des scores Arena Elo supérieurs à 1250, démontrant des performances exceptionnelles. Cependant, leurs coûts d'utilisation élevés constituent un frein majeur pour notre application.
+
+\paragraph{Modèles Intermédiaires} Claude 3 Opus et les variantes GPT-4 offrent un compromis intéressant entre performance et coût, mais restent dans une gamme tarifaire élevée pour un usage intensif.
+
+\paragraph{Modèles Optimisés} Gemini 1.5 Flash se distingue par un positionnement unique, offrant des performances solides (score Arena Elo de 1232) tout en bénéficiant d'une politique tarifaire particulièrement attractive.
+
+\subsubsection{Justification du Choix : Gemini 1.5 Flash}
+
+Après évaluation approfondie, Gemini 1.5 Flash s'impose comme le choix optimal pour JobAI, réunissant les avantages suivants :
+
+\begin{itemize}
+    \item Score Arena Elo de 1232, attestant de capacités avancées en génération de contenu
+    \item Fenêtre de contexte de 1 million de tokens, permettant le traitement d'informations professionnelles étendues
+    \item Débit de 150+ tokens/seconde, assurant une réactivité optimale
+    \item API gratuite dans les limites d'usage standard, éliminant les coûts d'exploitation initiaux
+    \item Modèle économique adapté aux startups et projets étudiants
+    \item API bien documentée et stable
+    \item Support natif des formats de sortie structurés (JSON, XML)
+\end{itemize}
+
+
+Cette sélection représente un équilibre optimal entre performance technique, viabilité économique et facilité d'implémentation, constituant un fondement solide pour le développement de JobAI.
+
+\subsubsection{Perspectives d'Évolution}
+
+L'architecture modulaire de JobAI permet une évolution future vers des modèles plus performants si les contraintes budgétaires le permettent. Un système de basculement vers GPT-4o ou Gemini 1.5 Pro pourra être envisagé pour les utilisateurs premium, offrant ainsi une stratégie de monétisation progressive.
+\newpage
+\section{Les Interfaces de l'Application}
+
+Cette section présente les principales interfaces de JobAI, conçues pour offrir une expérience utilisateur intuitive et complète dans la gestion de la recherche d'emploi. Chaque interface répond à des besoins spécifiques tout en maintenant une cohérence visuelle et fonctionnelle.
+
+\subsection{Interface de Tableau de Bord}
+
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=1\linewidth]{screens/dashboard.png}}
+    \caption{Interface du tableau de bord principal}
+    \label{fig:dashboard}
+\end{figure}
+
+La page "Tableau de Bord" constitue le point central de l'application, offrant à l'utilisateur une vue d'ensemble synthétique et visuelle de ses activités de recherche d'emploi. Cette interface présente des statistiques clés concernant les candidatures, notamment le nombre total d'offres enregistrées et leur répartition par statut (en attente, entretien, refusé, accepté).\\
+
+Un graphique interactif lui permet de visualiser rapidement l'état d'avancement de ses démarches, tandis qu'une section dédiée lui rappelle les prochaines échéances importantes. Grâce aux filtres temporels, l'utilisateur peut également analyser sa performance sur les 7, 30 ou 90 derniers jours, lui offrant ainsi un outil puissant pour suivre sa progression et ajuster sa stratégie.\\
+\subsection{Gestion des Offres d'Emploi}
+
+\subsubsection{Consultation des Offres}
+\vspace{-0.5cm}
+\begin{figure}[H]
+    \centering
+        \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=0.8\linewidth]{screens/page_de_consultation_des_offres}}
+    \caption{Interface de consultation des offres d'emploi}
+    \label{fig:consultation_offres}
+\end{figure}
+\vspace{-0.6cm}
+Cette interface présente un tableau récapitulatif complet des offres d'emploi enregistrées. Elle affiche les informations essentielles : titre du poste, entreprise, date de candidature, statut actuel, et rappels programmés. Les actions disponibles (définir un rappel, modifier, supprimer) sont accessibles directement depuis cette vue, facilitant la gestion centralisée des candidatures.
+
+\subsubsection{Détails d'une Offre}
+\vspace{-0.6cm}
+\begin{figure}[H]
+    \centering
+      \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=0.8\linewidth]{screens/Consultations_de_desc_de_l_offre.png}}
+    \caption{Interface de consultation détaillée d'une offre}
+    \label{fig:detail_offre}
+\end{figure}
+
+La page de détails d'une offre fournit une vue approfondie d'une candidature spécifique. Elle présente la description complète du poste, les exigences de l'employeur, l'historique des interactions, et les documents associés. Cette interface permet un suivi précis de chaque opportunité professionnelle.
+\vspace{-0.5cm}
+\subsubsection{Ajout Manuel d'Offres}
+\vspace{-0.5cm}
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=0.8\linewidth]{screens/l_ajout_des_offres_manuellement.png}}
+    \caption{Interface d'ajout manuel d'offres d'emploi}
+    \label{fig:ajout_offre}
+\end{figure}
+\vspace{-0.5cm}
+Cette interface permet aux utilisateurs d'enregistrer manuellement de nouvelles offres d'emploi dans leur système de suivi. Le formulaire structuré collecte toutes les informations pertinentes : détails du poste, informations sur l'entreprise, exigences, et notes personnelles. 
+\subsection{Gestion du Profil Utilisateur}
+\vspace{-0.5cm}
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{screens/modif_mot_de_passe.png}}
+        \vspace{0.2cm}
+        \caption{Modification mot de passe}
+        \label{fig:modif_mdp}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{screens/modif_info.png}}
+        \vspace{0.2cm}
+        \caption{Modification informations}
+        \label{fig:modif_info}
+    \end{minipage}
+\end{figure}
+\vspace{-0.5cm}
+\textbf{Informations personnelles} : Interface claire pour mise à jour des données personnelles avec validation avant enregistrement via boutons "Annuler/Sauvegarder".\\
+
+\textbf{Mot de passe} : Fonction sécurisée exigeant le mot de passe actuel et confirmation du nouveau, permettant une gestion autonome des accès.
+
+\subsection{Extension Chrome JobAI}
+
+L'extension Chrome de JobAI révolutionne la façon dont les utilisateurs collectent et gèrent les offres d'emploi en ligne. Cette solution innovante permet de capturer et sauvegarder automatiquement des opportunités professionnelles tout en naviguant naturellement sur des sites spécialisés comme LinkedIn, Welcome to the Jungle ou Indeed, sans interrompre le flux de navigation habituel.
+
+\subsubsection{Architecture et Fonctionnement}
+
+L'extension intègre un système RAG (Retrieval-Augmented Generation) sophistiqué qui analyse et extrait intelligemment les informations pertinentes des offres d'emploi sélectionnées. Cette technologie permet une compréhension contextuelle du contenu et une extraction précise des données structurées essentielles.
+
+\subsubsection{Interface d'Authentification}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+        \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+        \fbox{\includegraphics[width=0.9\linewidth]{screens/extension.png}}
+        \caption{Interface principale de l'extension}
+        \label{fig:extension_main}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+        \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+        \fbox{\includegraphics[width=0.94\linewidth]{screens/exntention-Login.png}}
+        \caption{Interface de connexion de l'extension}
+        \label{fig:extension_login}
+    \end{subfigure}
+    \caption{Interfaces d'accueil et d'authentification de l'extension Chrome}
+    \label{fig:extension_auth}
+\end{figure}
+
+L'extension propose une interface d'authentification sécurisée qui permet aux utilisateurs de se connecter directement depuis leur navigateur.
+
+\subsubsection{Détection et Capture d'Offres}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+        \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+        \fbox{\includegraphics[width=1\linewidth]{screens/Detection-Offre.png}}
+        \caption{Détection automatique d'une offre}
+        \label{fig:detection_offre}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+        \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+        \fbox{\includegraphics[width=1\linewidth]{screens/widget-Offre-details-extracted-with-add-button-to-job-liste.png}}
+        \caption{Widget d'extraction des détails}
+        \label{fig:widget_extraction}
+    \end{subfigure}
+    \caption{Processus de détection et d'extraction des offres d'emploi}
+    \label{fig:detection_extraction}
+\end{figure}
+
+Le processus de capture s'active simplement par la sélection de texte d'une offre sur une page web. Un widget contextuel intelligent apparaît instantanément, permettant à l'utilisateur de visualiser les informations extraites et de les modifier si nécessaire avant sauvegarde.
+
+\subsubsection{Processus d'Extraction Intelligent}
+
+Le système RAG intégré à l'extension analyse le texte sélectionné selon plusieurs étapes :
+
+\begin{enumerate}
+    \item \textbf{Analyse contextuelle} : Identification automatique du type de contenu et de sa structure
+    \item \textbf{Extraction des entités} : Recognition des éléments clés (titre du poste, entreprise, localisation, etc.)
+    \item \textbf{Structuration des données} : Organisation des informations selon un schéma prédéfini
+    \item \textbf{Validation et présentation} : Affichage des données extraites dans un formulaire éditable
+\end{enumerate}
+
+\subsubsection{Fonctionnalités Avancées}
+
+\paragraph{Édition en Temps Réel}
+L'interface de widget permet aux utilisateurs de modifier directement les informations extraites avant leur sauvegarde. Cette fonctionnalité garantit la précision des données collectées et permet d'ajouter des notes personnelles ou des détails complémentaires.
+
+\paragraph{Synchronisation Automatique}
+Une fois validées, les offres capturées sont automatiquement synchronisées avec la plateforme JobAI principale. Elles apparaissent instantanément dans l'interface de gestion des candidatures, prêtes pour analyse et traitement par les autres modules de l'écosystème.
+
+\subsection{Génération de Documents Professionnels}
+
+\subsubsection{Ajout du CV}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[c]{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{screens/cv-auto.jpeg}
+        \caption{Formulaire de génération automatique.}
+        \label{fig:cv-auto}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[c]{0.45\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{screens/cv-Manuelle.jpeg}
+        \caption{Remplissage manuel des informations.}
+        \label{fig:cv-manuelle}
+    \end{subfigure}
+    \caption{Interface de génération de CV exploitant l’intelligence artificielle.}
+    \label{fig:generation-cv-global}
+\end{figure}
+
+L’interface de génération de CV permet à l’utilisateur soit de remplir un formulaire structuré avec ses informations, soit de téléverser un CV existant. Dans ce dernier cas, un modèle d’intelligence artificielle (LLM) analyse automatiquement le document et remplit le formulaire à sa place. L’utilisateur peut ensuite visualiser un aperçu et générer un CV optimisé selon les standards professionnels actuels.
+
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+        \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+        \fbox{\includegraphics[width=1\linewidth]{screens/Add-offre.png}}
+    \caption{Interface d’ajout d’une offre d’emploi.}
+    \label{fig:add-offre}
+\end{figure}
+
+Cette interface permet à l’utilisateur d’ajouter manuellement une offre d’emploi. Les informations saisies sont ensuite utilisées par le système pour adapter automatiquement le CV et la lettre de motivation en fonction des exigences du poste. Cela garantit une meilleure adéquation entre le profil du candidat et les attentes des recruteurs.\\
+
+\subsection{Analyse de Compatibilité}
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=0.8\linewidth]{screens/Cv-Feedback.png}}
+    \caption{Interface d'analyse de compatibilité profil-offre}
+    \label{fig:analyse_compatibilite}
+\end{figure}
+
+L'interface d'analyse de compatibilité utilise l'intelligence artificielle pour évaluer l'adéquation entre le profil du candidat et une offre d'emploi. Elle présente un score de compatibilité détaillé, identifie les points forts et les lacunes, et propose des recommandations d'amélioration. Cette fonctionnalité aide les utilisateurs à prioriser leurs candidatures et à optimiser leur profil professionnel.
+
+\begin{figure}[H]
+    \centering
+    \setlength{\fboxrule}{0.2pt} % Épaisseur de la bordure
+    \setlength{\fboxsep}{0pt} % Espace entre image et bordure
+    \fbox{\includegraphics[width=1\linewidth]{screens/cv-Preview.jpg}}
+    \caption{Aperçu du CV généré par l’IA.}
+    \label{fig:cv-preview}
+\end{figure}
+
+Le modèle d’intelligence artificielle propose une version optimisée du CV selon les bonnes pratiques actuelles. Il adapte la mise en page, reformule certaines phrases et met en avant les compétences pertinentes en fonction du poste ciblé.
+
+
+
+\subsubsection{Génération de Lettres de Motivation}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{screens/Cover-Letter.png}
+    \caption{Lettre de motivation}
+    \label{fig:lettre_motivation}
+\end{figure}
+Cette interface permet la création automatisée de lettres de motivation personnalisées. En combinant les informations du profil utilisateur avec les détails d'une offre d'emploi spécifique, le système génère une lettre adaptée au poste et à l'entreprise cible. L'utilisateur peut prévisualiser, modifier et télécharger le document final.
+
+
+
+
+\subsection{Cohérence et Ergonomie}
+
+L'ensemble des interfaces de JobAI respecte une charte graphique cohérente, privilégiant la lisibilité et l'efficacité. La navigation intuitive, les codes couleur standardisés, et les icônes expressives facilitent l'appropriation de l'outil par les utilisateurs. Cette approche design garantit une expérience utilisateur fluide et professionnelle, adaptée aux exigences de la recherche d'emploi moderne.
+
+\section*{Conclusion}
+
+L’ensemble des interfaces proposées dans JobAI illustre la volonté de fournir un outil complet, ergonomique et intelligent pour accompagner l’utilisateur tout au long de son parcours de recherche d’emploi. Que ce soit via le tableau de bord synthétique, la gestion fine des offres, l’extension Chrome innovante ou les fonctionnalités avancées de génération et d’analyse de CV, chaque composant a été pensé pour maximiser l’efficacité, la personnalisation et la simplicité d’usage.
+
+Grâce à l’intégration de technologies d’intelligence artificielle telles que le système RAG pour l’extraction des offres et les modèles LLM pour l’optimisation des documents professionnels, JobAI se positionne comme une solution moderne et adaptée aux besoins actuels des candidats, facilitant la gestion proactive de leurs candidatures et améliorant leurs chances de succès.

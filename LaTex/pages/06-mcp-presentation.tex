@@ -1,0 +1,142 @@
+\renewcommand{\chaptername}{Chapter}
+\chapter{Model Context Protocol (MCP)}
+\label{chap:mcp}
+\vspace{-1cm}
+
+\section{Introduction to MCP}
+
+The Model Context Protocol (MCP) is an open protocol standardized by Anthropic that enables seamless integration between AI applications and external data sources. In the context of our project, MCP serves as the foundational layer that allows the AI assistant to access and interact with the knowledge library, providing contextual information to enhance conversational responses.
+\vspace{-0.5cm}
+\subsection{The Problem MCP Solves}
+
+AI-enabled tools are powerful, but they're often limited to the information manually provided or require bespoke integrations. Traditional AI applications face several challenges:
+
+\begin{itemize}
+    \item \textbf{Limited Context}: AI models can only work with information provided in prompts
+    \item \textbf{Manual Data Provision}: Users must manually copy and paste relevant information
+    \item \textbf{Bespoke Integrations}: Each data source requires custom, hard-coded integrations
+    \item \textbf{No Standardization}: Different AI applications implement data access differently
+\end{itemize}
+
+Whether it's reading files from your computer, searching through an internal or external knowledge base, or updating tasks in a project management tool, MCP provides a \textbf{secure, standardized, and simple} way to give AI systems the context they need.
+\vspace{-0.5cm}
+\section{MCP Architecture Overview}
+
+\subsection{Client-Server Architecture}
+\vspace{-0.5cm}
+\begin{figure}[H]
+	\centering
+	\setlength{\fboxrule}{1pt} % Épaisseur de la bordure
+	\setlength{\fboxsep}{0pt} % Espace entre image et bordure
+	\fbox{\includegraphics[width=0.8\linewidth]{LOGOS/MCP-Arch.png}}
+	\caption{MCP Client-Server Architecture}
+	\label{fig:MCP Client-Server Architecture}
+\end{figure}
+
+\subsection{Key Participants}
+
+The MCP architecture involves three primary participants:
+
+\begin{enumerate}
+    \item \textbf{MCP Host}: The AI application that coordinates and manages one or multiple MCP clients (e.g., Visual Studio Code, Claude Desktop, One Place Chat)
+    
+    \item \textbf{MCP Client}: A component that maintains a connection to an MCP server and obtains context from an MCP server for the MCP host to use
+    
+    \item \textbf{MCP Server}: A program that provides context to MCP clients. Servers can run locally (using STDIO transport) or remotely (using HTTP transport)
+\end{enumerate}
+
+\section{MCP Primitives}
+
+MCP defines primitives that specify what context can be shared between clients and servers. These are the core building blocks of the protocol.
+
+\subsection{Server Primitives}
+
+Servers expose three main types of primitives to provide context to AI applications:
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|p{3cm}|p{12cm}|}
+\hline
+\textbf{Primitive} & \textbf{Description} \\
+\hline
+\textbf{Tools} & Executable functions that AI applications can invoke to perform actions (e.g., file operations, API calls, database queries). 
+\newline Tools are discovered via \texttt{tools/list} and executed via \texttt{tools/call}. \\
+\hline
+\textbf{Resources} & Data sources that provide contextual information to AI applications (e.g., file contents, database records, API responses).\newline
+Accessed via \texttt{resources/list} and \texttt{resources/read}. \\
+\hline
+\textbf{Prompts} & Reusable templates that help structure interactions with language models (e.g., system prompts, few-shot examples). 
+\newline Retrieved via \texttt{prompts/list} and \texttt{prompts/get}. \\
+\hline
+\end{tabular}
+\caption{MCP Server Primitives}
+\label{tab:mcp-server-primitives}
+\end{table}
+
+\subsection{Client Primitives}
+
+Clients expose primitives that allow servers to build richer interactions:
+
+\begin{itemize}
+    \item \textbf{Sampling}: Allows servers to request language model completions from the client's AI application using \texttt{sampling/complete}
+    \item \textbf{Elicitation}: Enables servers to request additional information from users via \texttt{elicitation/request}
+    \item \textbf{Logging}: Allows servers to send log messages to clients for debugging and monitoring
+\end{itemize}
+
+\section{MCP Communication Flow}
+
+The typical MCP interaction follows a well-defined sequence:
+
+\begin{figure}[H]
+	\centering
+	\setlength{\fboxrule}{1pt} % Épaisseur de la bordure
+	\setlength{\fboxsep}{0pt} % Espace entre image et bordure
+	\fbox{\includegraphics[width=0.8\linewidth]{screens/mco-workflow.png}}
+	\caption{MCP Communication Workflow}
+	\label{fig:mcp-workflow}
+\end{figure}
+
+\subsection{Understanding the MCP Workflow}
+
+
+\subsubsection{The Discovery Phase}
+
+When a user sends a request to the AI application through the client interface, the Large Language Model (LLM) initiates a discovery phase:
+
+\begin{enumerate}
+    \item The LLM sends a \texttt{tools/list} request to the MCP server
+    \item The MCP server responds with a comprehensive list of all available tools that have been previously implemented and stored
+    \item Each tool in the list includes its name, description, and input schema (parameters it accepts)
+\end{enumerate}
+
+\subsubsection{The Tool Selection Phase}
+
+Once the LLM receives the list of available tools, it enters the tool selection phase:
+
+\begin{enumerate}
+    \item The LLM analyzes the user's request against the available tools
+    \item Based on the tool descriptions and schemas, the LLM intelligently selects the most appropriate tool(s) to fulfill the user's request
+    \item The LLM then invokes the selected tool using \texttt{tools/call} with appropriate arguments
+    \item The MCP server executes the pre-coded tool logic and returns the result
+    \item The LLM incorporates the tool result into its response to the user
+\end{enumerate}
+
+\subsubsection{Limitations and Design Implications}
+
+This architecture has important implications for system design:
+
+\begin{itemize}
+    \item \textbf{Pre-implementation Required}: Every capability the AI needs must be implemented as a tool beforehand
+    \item \textbf{Schema Definition}: Each tool must have a well-defined input schema so the LLM knows how to invoke it correctly
+    \item \textbf{Limited Flexibility}: The AI cannot create new tools or capabilities on the fly; it can only use what has been pre-coded
+    \item \textbf{Deterministic Behavior}: Since tools are pre-defined, their behavior is predictable and can be tested thoroughly
+\end{itemize}
+
+This design ensures security, reliability, and predictability, as the AI can only perform actions that have been explicitly programmed and authorized by developers.
+
+\section{Conclusion}
+
+The Model Context Protocol represents a significant advancement in how AI applications interact with external data sources. By providing a standardized, secure framework for context exchange, MCP eliminates the need for bespoke integrations while maintaining strict control over AI capabilities through pre-defined tools.
+
+
