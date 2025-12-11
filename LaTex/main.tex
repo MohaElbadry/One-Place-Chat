@@ -72,8 +72,8 @@
 	% Title page
 	\pagestyle{empty} % Remove page number from title page
 
-        % ---------Page De Garde---------%
-	%\include{pages/00-page-de-garde}
+% ---------Page De Garde---------
+	\includepdf[pages=-]{pages/page_de_garde.pdf}
 	
 	% Adjust margins for the rest of the document
 	\newgeometry{top=2.5cm, bottom=2.5cm, right=2cm, left=2.5cm}
@@ -84,15 +84,15 @@
 	\pagenumbering{gobble}	% Remove the entire counter 
 	
 	% Acknowledgments
-	%\include{pages/01-Remerciements}
+	\include{pages/01-Remerciements}
 	\thispagestyle{plain}
 	
 	% Table of Contents
-	%\tableofcontents
+	\tableofcontents
 	\clearpage
 	
 	% List of Figures
-	%\listoffigures
+	\listoffigures
 	\clearpage
 	
 	% Main Content with Arabic numerals
@@ -100,11 +100,12 @@
 	\setcounter{page}{1}
 	\pagestyle{fancy}
 	% Include main content chapters
-	% \include{pages/02-into-gene}
-	%\include{pages/05-presentation-entreprise}
+	\include{pages/02-into-gene}
+	\include{pages/05-presentation-entreprise}
 	\include{pages/06-mcp-presentation.tex}	
 	\include{pages/07-problem-solution.tex}
-
+	\include{pages/08-architecture-stack.tex}
+	\include{pages/09-realisation-opc.tex}
 	\include{pages/08-conclusion-perspectives}
 	\include{pages/09-annexes}
 	
